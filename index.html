@@ -155,6 +155,11 @@ tr:nth-child(even) td{background:var(--top)}
 .bsec{all:unset;box-sizing:border-box;padding:7px 16px;border-radius:6px;border:1px solid var(--br);color:var(--mu);font-size:12px;cursor:pointer}
 label.lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:block}
 .ir{margin-bottom:10px}
+[data-theme="light"] .appname>svg:first-of-type{outline:2px solid #1c1e22;border-radius:6px}
+[data-theme="light"] .appname svg:nth-of-type(2) text{fill:#1c1e22}
+[data-theme="light"] .appname svg:nth-of-type(2) polyline{stroke:#1c1e22}
+[data-theme="light"] .appname svg:nth-of-type(2) line{stroke:#1c1e22}
+[data-theme="light"] .appname svg:nth-of-type(2) polygon{fill:#1c1e22}
 /* WATCHLIST */
 .wl-res-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:0.5px solid var(--br)}
 .wl-res-item:last-child{border-bottom:none}
@@ -636,29 +641,24 @@ async function wlFetch(idx){
   if(item.exchange==='LSE'||item.exchange==='XLON'||item.exchange==='CBOE'||item.exchange==='BCXE'){
     ticker=item.sym.includes('.')?item.sym:(item.sym+'.L');
   }
-  var url='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+'?interval=1d&range=5d';
-  // Try multiple proxies in sequence with timeout
+  var yahooUrl='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+'?interval=1d&range=5d';
   var proxies=[
-    'https://api.allorigins.win/get?url=',
-    'https://api.allorigins.win/raw?url='
+    {url:'https://corsproxy.io/?url='+encodeURIComponent(yahooUrl),raw:true},
+    {url:'https://api.allorigins.win/get?url='+encodeURIComponent(yahooUrl),raw:false}
   ];
-  function fetchWithTimeout(url,ms){
-    return Promise.race([
-      fetch(url),
-      new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); },ms); })
-    ]);
+  function fetchWithTimeout(u,ms){
+    return Promise.race([fetch(u),new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); },ms); })]);
   }
   for(var pi=0;pi<proxies.length;pi++){
     try{
-      var r=await fetchWithTimeout(proxies[pi]+encodeURIComponent(url),8000);
+      var r=await fetchWithTimeout(proxies[pi].url,9000);
       if(!r.ok) continue;
       var text=await r.text();
-      var j;
-      try{ j=JSON.parse(text); }catch(e){ continue; }
-      // allorigins /get wraps in {contents:...}, /raw returns direct
-      var raw=j.contents!==undefined?j.contents:text;
       var data;
-      try{ data=typeof raw==='string'?JSON.parse(raw):raw; }catch(e){ continue; }
+      try{
+        if(proxies[pi].raw){ data=JSON.parse(text); }
+        else{ var j=JSON.parse(text); data=JSON.parse(j.contents); }
+      }catch(e){ continue; }
       var meta=data.chart&&data.chart.result&&data.chart.result[0]&&data.chart.result[0].meta;
       if(meta&&meta.regularMarketPrice){
         var rawPrice=meta.regularMarketPrice;
