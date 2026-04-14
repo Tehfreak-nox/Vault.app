@@ -490,7 +490,8 @@ function trRefreshDropdown(){
     sel.appendChild(o);
   });
   if(prev&&trStockItems().find(function(i){return sKey(i)===prev;}))sel.value=prev;
-  else if(trStockItems().length>0&&!prev)sel.value='';
+  else if(trStockItems().length===1)sel.value=sKey(trStockItems()[0]);
+  else sel.value='';
   trSelectStock();
 }
 function trSelectStock(){
@@ -623,6 +624,7 @@ function projRefreshDropdown(){
     sel.appendChild(o);
   });
   if(prev&&projStockItems().find(function(i){return sKey(i)===prev;}))sel.value=prev;
+  else if(projStockItems().length===1)sel.value=sKey(projStockItems()[0]);
   projSelectStock();
 }
 function projSelectStock(){
