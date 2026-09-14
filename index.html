@@ -283,11 +283,6 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
       <div class="psub">Your primary monthly income. Drives all budget calculations.</div>
       <div class="prow"><input class="sinp-sal" type="number" id="main-salary" value="0" min="0" step="50"><div><div class="punit" id="sal-unit">BHD / month</div><div class="peq fig-caption" id="sal-usd"></div></div></div>
     </div>
-    <div class="scard scard-yw">
-      <div class="plab"><div class="ptit" style="color:var(--yw-tx)">Living expense budget</div></div>
-      <div class="psub">A monthly baseline for day-to-day spending — food, groceries, going out. Every entry in the Spending tab is measured against this one pool. Tracked separately from your Expenses list below.</div>
-      <div class="prow"><input class="sinp-living" type="number" id="living-budget" value="0" min="0" step="10"><div><div class="punit" id="living-unit">BHD / month</div></div></div>
-    </div>
     <div class="card"><div class="ct ct-gr">Additional income sources</div><div class="dlist" id="income-list"></div><button class="ab" onclick="addR('income')"><span class="add-ic">+</span> Add income source</button></div>
     <div class="sg" id="inc-stats"></div>
   </div>
@@ -340,6 +335,11 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     <button class="btab" data-sv="history">History</button>
   </div>
   <div class="bpn on" id="sp-pn-month">
+    <div class="scard scard-yw">
+      <div class="plab"><div class="ptit" style="color:var(--yw-tx)">Living expense budget</div></div>
+      <div class="psub">A monthly baseline for day-to-day spending — food, groceries, going out. Every entry above is measured against this one pool.</div>
+      <div class="prow"><input class="sinp-living" type="number" id="living-budget" value="0" min="0" step="10"><div><div class="punit" id="living-unit">BHD / month</div></div></div>
+    </div>
     <div class="card" id="sp-month-hero"></div>
     <div class="sg" id="sp-month-stats"></div>
     <div class="card"><div class="ct">By category</div>
