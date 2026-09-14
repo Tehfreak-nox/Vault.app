@@ -262,9 +262,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 <div class="tabs" id="mt">
   <button class="tab on" data-t="budget">&#127968; Budget</button>
   <button class="tab" data-t="spending">Spending</button>
-  <button class="tab" data-t="tracker">Tracker</button>
-  <button class="tab" data-t="projection">Projection</button>
-  <button class="tab" data-t="watchlist">Watchlist</button>
+  <button class="tab" data-t="investing">Investing</button>
 </div>
 
 <!-- BUDGET -->
@@ -344,8 +342,14 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
   </div>
 </div>
 
-<!-- TRACKER -->
-<div class="panel" id="tab-tracker">
+<!-- INVESTING -->
+<div class="panel" id="tab-investing">
+  <div class="btabs" id="iv-views">
+    <button class="btab on" data-iv="tracker">Tracker</button>
+    <button class="btab" data-iv="projection">Projection</button>
+    <button class="btab" data-iv="watchlist">Watchlist</button>
+  </div>
+  <div class="bpn on" id="iv-pn-tracker">
   <div class="home-hero">
     <div class="sect-title">Investment Tracker</div>
     <div class="sect-sub">Record your actual monthly investments per stock. Enable Track on a Watchlist item first.</div>
@@ -370,10 +374,8 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     <div class="ysum" id="tr-sum"></div>
     <div class="card" style="margin-top:10px"><div class="ct" id="tr-chart-title">Cumulative invested — solid actual, dashed projected</div><div class="cw"><canvas id="chart-tr"></canvas></div></div>
   </div>
-</div>
-
-<!-- PROJECTION -->
-<div class="panel" id="tab-projection">
+  </div>
+  <div class="bpn" id="iv-pn-projection">
   <div class="card" style="margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div>
@@ -394,10 +396,8 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     Enable <strong style="color:var(--gr-tx)">Project</strong> on a stock in the Watchlist tab to project it here.
   </div>
   <div id="proj-overview" style="display:none;margin-top:16px"></div>
-</div>
-
-<!-- WATCHLIST -->
-<div class="panel" id="tab-watchlist">
+  </div>
+  <div class="bpn" id="iv-pn-watchlist">
   <div style="margin-bottom:14px">
     <div class="sect-title">Watchlist</div>
     <div class="sect-sub">Search any stock or ETF, add it, then enable Track or Project.</div>
@@ -415,6 +415,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
   <div id="wl-list"></div>
   <div id="wl-empty" class="empty-state" style="display:none">
     No stocks added yet. Search above to add your first one.
+  </div>
   </div>
 </div>
 
@@ -461,6 +462,7 @@ var expData={v:1,entries:[],cats:expDefaultCats.slice(),dismissed:[],budgets:[]}
 var spSelectedCat='';
 var spCatEditMode=false;
 var spActiveView='month';
+var ivActiveView='tracker';
 var budgetLists={income:[],expenses:[],savings:[]};
 var baseCurrency='BHD';
 var CUR={BHD:{code:'BHD',sym:'BD',dp:3},USD:{code:'USD',sym:'$',dp:2},
@@ -818,6 +820,17 @@ function spRenderHistory(){
 function spInit(){
   if(!el('sp-date').value)el('sp-date').value=todayStr();
   spRenderChips();spRenderRecent();spRenderBudgetCard();spSetView(spActiveView);
+}
+
+// INVESTING
+function ivSetView(v){
+  ivActiveView=v;
+  document.querySelectorAll('#iv-views .btab').forEach(function(b){b.classList.toggle('on',b.dataset.iv===v);});
+  document.querySelectorAll('#tab-investing .bpn').forEach(function(p){p.classList.remove('on');});
+  el('iv-pn-'+v).classList.add('on');
+  if(v==='tracker')trRefreshDropdown();
+  else if(v==='projection'){projRefreshDropdown();renderFXBar();}
+  else if(v==='watchlist')wlInit();
 }
 
 // TRACKER
@@ -1367,13 +1380,15 @@ el('mt').addEventListener('click',function(e){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   btn.classList.add('on');el('tab-'+btn.dataset.t).classList.add('on');
   if(btn.dataset.t==='spending'){spInit();}
-  if(btn.dataset.t==='tracker'){trRefreshDropdown();}
-  if(btn.dataset.t==='projection'){projRefreshDropdown();renderFXBar();}
-  if(btn.dataset.t==='watchlist'){wlInit();}
+  if(btn.dataset.t==='investing'){ivSetView(ivActiveView);}
 });
 el('sp-views').addEventListener('click',function(e){
   var btn=e.target.closest('.btab');if(!btn||!btn.dataset.sv)return;
   spSetView(btn.dataset.sv);
+});
+el('iv-views').addEventListener('click',function(e){
+  var btn=e.target.closest('.btab');if(!btn||!btn.dataset.iv)return;
+  ivSetView(btn.dataset.iv);
 });
 el('tab-spending').addEventListener('click',function(e){
   var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
