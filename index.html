@@ -202,6 +202,10 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
   </div>
   <div class="top-r">
     <span class="savb" id="savb">Saved</span>
+    <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+      <select class="sinp" id="cur-sel" onchange="setBaseCurrency(this.value)" style="font-size:11px;padding:4px 8px" title="Base currency"></select>
+      <span style="font-size:9px;color:var(--dm);line-height:1.3;max-width:150px">Changes the currency label. Figures are not converted.</span>
+    </div>
     <button class="btn" onclick="openExp()">Export</button>
     <button class="btn" onclick="openImp()">Import</button>
     <button class="btn" id="theme-btn" onclick="toggleTheme()">&#9790; Light</button>
@@ -228,7 +232,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     <div class="scard">
       <div class="plab"><div class="dnum dn-gr" style="margin-right:2px">&#9733;</div><div class="ptit" style="color:var(--gr-tx)">Main Income</div></div>
       <div class="psub">Your primary monthly income. Drives all budget calculations.</div>
-      <div class="prow"><input class="sinp-sal" type="number" id="main-salary" value="0" min="0" step="50"><div><div class="punit">BHD / month</div><div class="peq" id="sal-usd"></div></div></div>
+      <div class="prow"><input class="sinp-sal" type="number" id="main-salary" value="0" min="0" step="50"><div><div class="punit" id="sal-unit">BHD / month</div><div class="peq" id="sal-usd"></div></div></div>
     </div>
     <div class="card"><div class="ct" style="color:var(--gr-tx)">Additional income sources</div><div class="dlist" id="income-list"></div><button class="ab" onclick="addR('income')"><span style="font-size:15px;line-height:1">+</span> Add income source</button></div>
     <div class="sg" id="inc-stats"></div>
@@ -272,7 +276,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
   <div id="tr-content" style="display:none">
     <div class="card"><div id="tr-months"></div><div class="note" id="tr-help"></div></div>
     <div class="ysum" id="tr-sum"></div>
-    <div class="card" style="margin-top:10px"><div class="ct">Cumulative invested (BHD) — solid actual, dashed projected</div><div class="cw"><canvas id="chart-tr"></canvas></div></div>
+    <div class="card" style="margin-top:10px"><div class="ct" id="tr-chart-title">Cumulative invested — solid actual, dashed projected</div><div class="cw"><canvas id="chart-tr"></canvas></div></div>
   </div>
 </div>
 
@@ -343,7 +347,13 @@ var wlData=[];
 var trData={};
 var projData={};
 var budgetLists={income:[],expenses:[],savings:[]};
-var fxData={usdBhd:0.376,gbpBhd:0.472,eurBhd:0.408,inflation:2.5,status:null,lastUpdated:null};
+var baseCurrency='BHD';
+var CUR={BHD:{code:'BHD',sym:'BD',dp:3},USD:{code:'USD',sym:'$',dp:2},
+         GBP:{code:'GBP',sym:'£',dp:2},EUR:{code:'EUR',sym:'€',dp:2},
+         AED:{code:'AED',sym:'AED',dp:2},SAR:{code:'SAR',sym:'SAR',dp:2},
+         KWD:{code:'KWD',sym:'KD',dp:3},OMR:{code:'OMR',sym:'RO',dp:3},
+         QAR:{code:'QAR',sym:'QR',dp:2}};
+var fxData={rates:{USD:0.376,GBP:0.472,EUR:0.408,AED:0.1023,SAR:0.1003,KWD:1.222,OMR:0.978,QAR:0.1033},inflation:2.5,status:null,lastUpdated:null};
 var trKey='';
 var projKey='';
 
@@ -356,14 +366,24 @@ function tc(){return{color:isDk()?'#949ba4':'#6b7280',font:{size:10}};}
 function fmK(v){return v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1000)+'K';}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;');}
 function tl(t){return budgetLists[t].reduce(function(s,r){return s+(r.amt||0);},0);}
-function bd(v){v=Math.max(v||0,0);if(v>=1e6)return 'BD '+(v/1e6).toFixed(2)+'M';if(v>=1000)return 'BD '+Math.round(v/1000).toLocaleString()+'K';return 'BD '+Math.round(v).toLocaleString();}
+function fmtMoney(amt,opts){
+  opts=opts||{};
+  var cur=CUR[opts.cur||baseCurrency]||CUR.BHD;
+  var v=amt||0,neg=v<0;v=Math.abs(v);
+  var dp=opts.dp!=null?opts.dp:0;
+  var out;
+  if(opts.short&&v>=1e6)out=(v/1e6).toFixed(2)+'M';
+  else if(opts.short&&v>=1000)out=Math.round(v/1000).toLocaleString()+'K';
+  else out=v.toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp});
+  return (neg?'− ':'')+cur.sym+' '+out;
+}
 function fv(r,y,p){if(!r||!y||!p)return 0;var rm=r/12,n=y*12;return p*((Math.pow(1+rm,n)-1)/rm)*(1+rm);}
 function sKey(item){return item.sym+'_'+item.exchange;}
 function mkC(id,cfg){if(CH[id]){try{CH[id].destroy();}catch(e){}}var c=el(id);if(!c)return;CH[id]=new Chart(c,cfg);}
 function sc(l,v,s,cls,vcls){return '<div class="sc '+cls+'"><div class="scl '+vcls.replace('scv','scl')+'">'+l+'</div><div class="'+vcls+'">'+v+'</div><div class="scs">'+s+'</div></div>';}
 
-function toBHD(amt,cur){if(!cur||cur==='BHD')return amt;if(cur==='USD')return amt*fxData.usdBhd;if(cur==='GBP')return amt*fxData.gbpBhd;if(cur==='EUR')return amt*fxData.eurBhd;return amt*fxData.usdBhd;}
-function fromBHD(amt,cur){if(!cur||cur==='BHD')return amt;if(cur==='USD')return amt/fxData.usdBhd;if(cur==='GBP')return amt/fxData.gbpBhd;if(cur==='EUR')return amt/fxData.eurBhd;return amt/fxData.usdBhd;}
+function toBase(amt,cur){if(!cur||cur===baseCurrency)return amt;var r=fxData.rates[cur];return r?amt*r:amt;}
+function fromBase(amt,cur){if(!cur||cur===baseCurrency)return amt;var r=fxData.rates[cur];return r?amt/r:amt;}
 
 // ── THEME ──
 function toggleTheme(){
@@ -379,10 +399,32 @@ function loadTheme(){
   el('theme-btn').textContent=(t==='light')?'\u263D Dark':'\u2600 Light';
 }
 
+// —— CURRENCY ——
+function renderCurControls(){
+  var sel=el('cur-sel');if(!sel)return;
+  if(!sel.options.length){
+    Object.keys(CUR).forEach(function(code){var o=document.createElement('option');o.value=code;o.textContent=code;sel.appendChild(o);});
+  }
+  sel.value=baseCurrency;
+  var unit=el('sal-unit');if(unit)unit.textContent=baseCurrency+' / month';
+}
+function setBaseCurrency(code){
+  if(!CUR[code]||code===baseCurrency)return;
+  baseCurrency=code;
+  saveAll();
+  renderCurControls();
+  ['income','expenses','savings'].forEach(renderL);
+  recalcBudget();
+  renderFXBar();
+  if(trKey)renderTr();
+  if(projKey)renderProjStock();
+  renderProjOverview();
+}
+
 // ── SAVE / LOAD ──
 function saveAll(){
   try{
-    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary')}));
+    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),baseCurrency:baseCurrency}));
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
@@ -392,10 +434,11 @@ function saveAll(){
 function loadAll(){
   try{
     var r=localStorage.getItem(SK);
-    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;}}
+    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';}}
     var wr=localStorage.getItem(WL_SK);if(wr)wlData=JSON.parse(wr);
     var tr=localStorage.getItem(TR_SK);if(tr)trData=JSON.parse(tr);
     var pr=localStorage.getItem(PROJ_SK);if(pr)projData=JSON.parse(pr);
+    renderCurControls();
   }catch(e){}
 }
 function flash(){var b=el('savb');b.classList.add('on');clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('on');},1800);}
@@ -405,8 +448,17 @@ async function projFetchFX(){
   var btn=el('proj-fx-btn');if(btn)btn.textContent='Refreshing...';
   var ok=false;
   try{
-    var r=await fetch('https://open.er-api.com/v6/latest/USD');
-    if(r.ok){var d=await r.json();if(d.rates){if(d.rates.BHD){fxData.usdBhd=parseFloat(d.rates.BHD.toFixed(4));}if(d.rates.GBP){fxData.gbpBhd=parseFloat((d.rates.BHD/d.rates.GBP).toFixed(4));}if(d.rates.EUR){fxData.eurBhd=parseFloat((d.rates.BHD/d.rates.EUR).toFixed(4));}ok=true;}}
+    var r=await fetch('https://open.er-api.com/v6/latest/'+baseCurrency);
+    if(r.ok){
+      var d=await r.json();
+      if(d.rates){
+        Object.keys(CUR).forEach(function(code){
+          if(code===baseCurrency)return;
+          if(d.rates[code])fxData.rates[code]=parseFloat((1/d.rates[code]).toFixed(6));
+        });
+        ok=true;
+      }
+    }
   }catch(e){}
   try{
     var ir=await fetch('https://api.worldbank.org/v2/country/US/indicator/FP.CPI.TOTL.ZG?format=json&mrv=1');
@@ -425,7 +477,12 @@ function renderFXBar(){
     else if(fxData.status==='fail')s.innerHTML='<span style="color:var(--rd-v);font-weight:600">&#10005; Update failed — using cached rates</span>';
     else s.innerHTML='<span style="color:var(--dm)">Rates not yet refreshed — using defaults</span>';
   }
-  if(r)r.textContent='1 USD = BD '+fxData.usdBhd+' \u00b7 1 GBP = BD '+fxData.gbpBhd+' \u00b7 Inflation: '+fxData.inflation+'%';
+  if(r){
+    var refs=['USD','GBP','EUR'].filter(function(c){return c!==baseCurrency;}).slice(0,2);
+    var parts=refs.map(function(c){return '1 '+c+' = '+fmtMoney(fxData.rates[c]||0,{dp:3});});
+    parts.push('Inflation: '+fxData.inflation+'%');
+    r.textContent=parts.join(' \u00b7 ');
+  }
 }
 
 // ── BUDGET ──
@@ -437,7 +494,7 @@ function renderL(t){
     row.innerHTML='<div class="dnum '+cls+'">'+(i+1)+'</div>'
       +'<input class="dn" type="text" placeholder="Name" value="'+esc(item.name)+'" data-t="'+t+'" data-i="'+i+'" data-f="n">'
       +'<input class="da" type="number" placeholder="0" value="'+item.amt+'" min="0" data-t="'+t+'" data-i="'+i+'" data-f="a">'
-      +'<span class="dlb">BD/mo</span>'
+      +'<span class="dlb">'+CUR[baseCurrency].sym+'/mo</span>'
       +'<button class="xb" onclick="delR(\''+t+'\','+i+')" title="Remove">&#x2715;</button>';
     c.appendChild(row);
   });
@@ -454,18 +511,18 @@ function addR(t){budgetLists[t].push({name:'',amt:0});renderL(t);var ins=el(t+'-
 function delR(t,i){budgetLists[t].splice(i,1);renderL(t);recalcBudget();}
 
 function recalcBudget(){
-  var sal=gn('main-salary');var usdPerBhd=1/fxData.usdBhd;
+  var sal=gn('main-salary');
   var aInc=tl('income');var aSav=tl('savings');var totI=sal+aInc;var totE=tl('expenses');var buf=totI-totE-aSav;
-  ht('sal-usd','approx $'+Math.round(sal*usdPerBhd).toLocaleString()+' USD');
-  ht('inc-stats',sc('Total income','BD '+Math.round(totI).toLocaleString()+'/mo','Salary + all sources','sc-gr','scv-gr')+sc('Main income','BD '+Math.round(sal).toLocaleString()+'/mo','Fixed above','sc-gr','scv-gr')+sc('Other income','BD '+Math.round(aInc).toLocaleString()+'/mo',budgetLists.income.length+' sources','sc-nt','scv-nt'));
-  ht('exp-stats',sc('Total expenses','BD '+Math.round(totE).toLocaleString()+'/mo',budgetLists.expenses.length+' items','sc-rd','scv-rd')+sc('Expense rate',totI>0?(totE/totI*100).toFixed(1)+'%':'--','Of income','sc-rd','scv-rd')+sc('Buffer','BD '+Math.round(buf).toLocaleString()+'/mo','After all outgoings',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
-  ht('sav-stats',sc('Total savings','BD '+Math.round(aSav).toLocaleString()+'/mo',budgetLists.savings.length+' items','sc-bl','scv-bl')+sc('Savings rate',totI>0?(aSav/totI*100).toFixed(1)+'%':'--','Of income','sc-bl','scv-bl')+sc('Buffer','BD '+Math.round(buf).toLocaleString()+'/mo','After all outgoings',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
-  ht('bkd-stats',sc('Total income','BD '+Math.round(totI).toLocaleString()+'/mo','All sources','sc-gr','scv-gr')+sc('Total expenses','BD '+Math.round(totE).toLocaleString()+'/mo',budgetLists.expenses.length+' items','sc-rd','scv-rd')+sc('Total savings','BD '+Math.round(aSav).toLocaleString()+'/mo',budgetLists.savings.length+' items','sc-bl','scv-bl')+sc('Buffer','BD '+Math.round(buf).toLocaleString()+'/mo','Free cash',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
+  ht('sal-usd',baseCurrency==='USD'?'':'approx '+fmtMoney(fromBase(sal,'USD'),{cur:'USD'})+' USD');
+  ht('inc-stats',sc('Total income',fmtMoney(totI)+'/mo','Salary + all sources','sc-gr','scv-gr')+sc('Main income',fmtMoney(sal)+'/mo','Fixed above','sc-gr','scv-gr')+sc('Other income',fmtMoney(aInc)+'/mo',budgetLists.income.length+' sources','sc-nt','scv-nt'));
+  ht('exp-stats',sc('Total expenses',fmtMoney(totE)+'/mo',budgetLists.expenses.length+' items','sc-rd','scv-rd')+sc('Expense rate',totI>0?(totE/totI*100).toFixed(1)+'%':'--','Of income','sc-rd','scv-rd')+sc('Buffer',fmtMoney(buf)+'/mo','After all outgoings',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
+  ht('sav-stats',sc('Total savings',fmtMoney(aSav)+'/mo',budgetLists.savings.length+' items','sc-bl','scv-bl')+sc('Savings rate',totI>0?(aSav/totI*100).toFixed(1)+'%':'--','Of income','sc-bl','scv-bl')+sc('Buffer',fmtMoney(buf)+'/mo','After all outgoings',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
+  ht('bkd-stats',sc('Total income',fmtMoney(totI)+'/mo','All sources','sc-gr','scv-gr')+sc('Total expenses',fmtMoney(totE)+'/mo',budgetLists.expenses.length+' items','sc-rd','scv-rd')+sc('Total savings',fmtMoney(aSav)+'/mo',budgetLists.savings.length+' items','sc-bl','scv-bl')+sc('Buffer',fmtMoney(buf)+'/mo','Free cash',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
   var bH='';
-  budgetLists.expenses.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+esc(item.name)+'">'+esc(item.name)+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--rd-v)"></div></div><div class="bv" style="color:var(--rd-v)">BD '+item.amt+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
+  budgetLists.expenses.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+esc(item.name)+'">'+esc(item.name)+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--rd-v)"></div></div><div class="bv" style="color:var(--rd-v)">'+fmtMoney(item.amt)+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
   if(aSav>0)bH+='<hr class="bdiv">';
-  budgetLists.savings.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+esc(item.name)+'">'+esc(item.name)+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--bl-v)"></div></div><div class="bv" style="color:var(--bl-v)">BD '+item.amt+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
-  if(buf>0){var bw=totI>0?Math.min(100,buf/totI*100).toFixed(1):0;bH+='<hr class="bdiv"><div class="br0"><div class="bn" style="color:var(--yw-v);font-weight:600">Buffer</div><div class="bt"><div class="bf" style="width:'+bw+'%;background:var(--yw-v)"></div></div><div class="bv" style="color:var(--yw-v)">BD '+Math.round(buf)+'</div><div class="bp">'+(totI>0?(buf/totI*100).toFixed(1):0)+'%</div></div>';}
+  budgetLists.savings.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+esc(item.name)+'">'+esc(item.name)+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--bl-v)"></div></div><div class="bv" style="color:var(--bl-v)">'+fmtMoney(item.amt)+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
+  if(buf>0){var bw=totI>0?Math.min(100,buf/totI*100).toFixed(1):0;bH+='<hr class="bdiv"><div class="br0"><div class="bn" style="color:var(--yw-v);font-weight:600">Buffer</div><div class="bt"><div class="bf" style="width:'+bw+'%;background:var(--yw-v)"></div></div><div class="bv" style="color:var(--yw-v)">'+fmtMoney(buf)+'</div><div class="bp">'+(totI>0?(buf/totI*100).toFixed(1):0)+'%</div></div>';}
   ht('budget-bars',bH||'<div style="color:var(--dm);font-size:12px">Add expenses and savings to see breakdown.</div>');
   var pL=[],pD=[],pC=[];
   budgetLists.expenses.forEach(function(r){if(r.amt>0){pL.push(r.name);pD.push(r.amt);pC.push(isDk()?'#f28b82':'#d94e49');}});
@@ -474,7 +531,7 @@ function recalcBudget(){
   mkC('chart-pie',{type:'doughnut',data:{labels:pL,datasets:[{data:pD,backgroundColor:pC,borderColor:isDk()?'#32343a':'#f6f7f9',borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:tc().color,font:{size:11},padding:8,boxWidth:10}},
     tooltip:{backgroundColor:isDk()?'#252729':'#fff',borderColor:isDk()?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:isDk()?'#dbdee1':'#1c1e22',
-    callbacks:{label:function(c){return c.label+': BD '+c.raw.toLocaleString();}}}}}});
+    callbacks:{label:function(c){return c.label+': '+fmtMoney(c.raw);}}}}}});
   saveAll();
 }
 
@@ -510,9 +567,9 @@ function trSelectStock(){
   var item=wlData.find(function(w){return sKey(w)===trKey;});
   if(item){
     var curSel=el('tr-cur');
-    curSel.innerHTML='<option value="BHD">BHD</option>';
+    curSel.innerHTML='<option value="'+baseCurrency+'">'+baseCurrency+'</option>';
     var native=item.currency||'USD';
-    if(native!=='BHD')curSel.innerHTML+='<option value="'+native+'">'+native+'</option>';
+    if(native!==baseCurrency)curSel.innerHTML+='<option value="'+native+'">'+native+'</option>';
   }
   trPopYrSel();renderTr();
 }
@@ -549,7 +606,7 @@ function trSetEntry(yr,mo,amtBHD){
   saveAll();
   var item=wlData.find(function(w){return sKey(w)===trKey;});
   if(item&&item.project&&amtBHD!==null){
-    if(!projData[trKey])projData[trKey]={monthlyBHD:0,rate:defaultRate(item),horizonYears:null,viewMode:'fiveyr',currency:'BHD'};
+    if(!projData[trKey])projData[trKey]={monthlyBHD:0,rate:defaultRate(item),horizonYears:null,viewMode:'fiveyr',currency:baseCurrency};
     projData[trKey].monthlyBHD=amtBHD;
     if(projKey===trKey)renderProjStock();
   }
@@ -560,7 +617,7 @@ function renderTr(){
   var sy=parseInt(el('yr-sel').value)||trData[trKey].years[0].year;
   var yi=trData[trKey].years.findIndex(function(y){return y.year===sy;})+1;
   ht('yr-bdg','Year '+yi+' of '+trData[trKey].years.length);
-  var isBHD=(el('tr-cur').value==='BHD');
+  var isBase=(el('tr-cur').value===baseCurrency);
   var item=wlData.find(function(w){return sKey(w)===trKey;});
   var native=item?(item.currency||'USD'):'USD';
   var now=new Date();var cy=now.getFullYear(),cm=now.getMonth()+1;
@@ -577,20 +634,20 @@ function renderTr(){
     var nc='mn'+(isCur?' cur':isPast?' past':' fut');
     var inputVal='',ph='',tag='',conv='',icls='',xBtn='';
     if(rec){
-      var rd=isBHD?rec.amtBHD:parseFloat(fromBHD(rec.amtBHD,native).toFixed(1));
-      inputVal=rd;conv=isBHD?('\u2248 '+native+' '+Math.round(fromBHD(rec.amtBHD,native)).toLocaleString()):('\u2248 BD '+Math.round(rec.amtBHD).toLocaleString());
+      var rd=isBase?rec.amtBHD:parseFloat(fromBase(rec.amtBHD,native).toFixed(1));
+      inputVal=rd;conv=isBase?('\u2248 '+native+' '+Math.round(fromBase(rec.amtBHD,native)).toLocaleString()):('\u2248 '+fmtMoney(rec.amtBHD));
       tag=(rec.amtBHD===0)?'<span class="mtag tzro">Zero</span>':'<span class="mtag trec">Recorded</span>';
       icls=(rec.amtBHD===0)?'zero':'rec';
       xBtn='<button class="xcl" onclick="clearTrEntry('+sy+','+m+')" title="Clear">&#x2715;</button>';
     }else if(isPast||isCur){
-      ph=isBHD?Math.round(eff):parseFloat(fromBHD(eff,native).toFixed(1));
+      ph=isBase?Math.round(eff):parseFloat(fromBase(eff,native).toFixed(1));
       tag=eff>0?'<span class="mtag tdef">Carried</span>':'<span class="mtag tdef">\u2014</span>';
     }else{ph='\u2014';tag='<span class="mtag tdef">Future</span>';}
-    var cumLabel=isFuture?'Projected BD '+cumProj.toLocaleString():'Total BD '+Math.round(cumBHD).toLocaleString();
+    var cumLabel=isFuture?'Projected '+fmtMoney(cumProj):'Total '+fmtMoney(cumBHD);
     var cumStyle=isFuture?' style="color:var(--dm)"':'';
     html+='<div class="mr"><div class="'+nc+'">'+MN[m-1]+'</div>'
-      +'<div class="mai"><input type="number" placeholder="'+ph+'" value="'+inputVal+'" min="0" step="'+(isBHD?10:1)+'" class="'+icls+'" onchange="handleTrInput('+sy+','+m+',this)"></div>'
-      +'<div class="mcl">'+(isBHD?'BHD':native)+'</div><div class="mcv">'+conv+'</div>'
+      +'<div class="mai"><input type="number" placeholder="'+ph+'" value="'+inputVal+'" min="0" step="'+(isBase?10:1)+'" class="'+icls+'" onchange="handleTrInput('+sy+','+m+',this)"></div>'
+      +'<div class="mcl">'+(isBase?baseCurrency:native)+'</div><div class="mcv">'+conv+'</div>'
       +tag+xBtn+'<div class="mcum"'+cumStyle+'>'+cumLabel+'</div></div>';
   }
   ht('tr-months',html);
@@ -598,26 +655,26 @@ function renderTr(){
   var itemName=item?item.sym:trKey;
   ht('tr-sum','<div style="font-size:12px;font-weight:600;color:var(--gr-v);margin-bottom:6px">'+itemName+' \u2014 '+sy+' Summary</div><div class="ysg">'
     +'<div class="ysi"><div class="ysl">Recorded</div><div class="ysv">'+recs+' / 12</div></div>'
-    +'<div class="ysi"><div class="ysl">Total recorded</div><div class="ysv">BD '+Math.round(totBHD).toLocaleString()+'</div></div>'
-    +'<div class="ysi"><div class="ysl">Cumulative</div><div class="ysv">BD '+Math.round(cumBHD).toLocaleString()+'</div></div>'
-    +'<div class="ysi"><div class="ysl">Projected year-end</div><div class="ysv" style="color:var(--dm)">BD '+Math.round(cumProj).toLocaleString()+'</div></div>'
-    +'<div class="ysi"><div class="ysl">Avg / month</div><div class="ysv">BD '+Math.round(avg).toLocaleString()+'</div></div></div>');
+    +'<div class="ysi"><div class="ysl">Total recorded</div><div class="ysv">'+fmtMoney(totBHD)+'</div></div>'
+    +'<div class="ysi"><div class="ysl">Cumulative</div><div class="ysv">'+fmtMoney(cumBHD)+'</div></div>'
+    +'<div class="ysi"><div class="ysl">Projected year-end</div><div class="ysv" style="color:var(--dm)">'+fmtMoney(cumProj)+'</div></div>'
+    +'<div class="ysi"><div class="ysl">Avg / month</div><div class="ysv">'+fmtMoney(avg)+'</div></div></div>');
   ht('tr-help','Cumulative reflects what\u2019s actually been committed through the current month and stops there. Projected year-end shows where the total lands if the standing monthly rate continues unchanged. To stop contributions, record a month as <strong>0</strong> \u2014 otherwise the last recorded amount keeps carrying forward.');
   var dk=isDk();
   mkC('chart-tr',{type:'line',data:{labels:labs,datasets:[
-    {label:'Cumulative BD',data:cArr,borderColor:dk?'#6dbf67':'#2d7a2a',backgroundColor:dk?'rgba(109,191,103,0.1)':'rgba(45,122,42,0.08)',borderWidth:2.5,pointRadius:3,fill:true,spanGaps:false},
-    {label:'Projected BD',data:cProj,borderColor:dk?'#6dbf67':'#2d7a2a',borderDash:[4,4],borderWidth:2,pointRadius:0,fill:false}
+    {label:'Cumulative',data:cArr,borderColor:dk?'#6dbf67':'#2d7a2a',backgroundColor:dk?'rgba(109,191,103,0.1)':'rgba(45,122,42,0.08)',borderWidth:2.5,pointRadius:3,fill:true,spanGaps:false},
+    {label:'Projected',data:cProj,borderColor:dk?'#6dbf67':'#2d7a2a',borderDash:[4,4],borderWidth:2,pointRadius:0,fill:false}
   ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return c.dataset.label+': BD '+c.raw.toLocaleString();}}}},
-    scales:{x:{ticks:tc(),grid:{color:gc()}},y:{ticks:Object.assign({},tc(),{callback:function(v){return 'BD '+v.toLocaleString();}}),grid:{color:gc()}}}}});
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return c.dataset.label+': '+fmtMoney(c.raw);}}}},
+    scales:{x:{ticks:tc(),grid:{color:gc()}},y:{ticks:Object.assign({},tc(),{callback:function(v){return fmtMoney(v);}}),grid:{color:gc()}}}}});
 }
 function handleTrInput(yr,mo,inp){
-  var isBHD=(el('tr-cur').value==='BHD');
+  var isBase=(el('tr-cur').value===baseCurrency);
   var raw=parseFloat(inp.value);
   var item=wlData.find(function(w){return sKey(w)===trKey;});
   var native=item?(item.currency||'USD'):'USD';
   if(inp.value===''||isNaN(raw)){trSetEntry(yr,mo,null);inp.className='';}
-  else{var bhd=isBHD?raw:toBHD(raw,native);trSetEntry(yr,mo,parseFloat(bhd.toFixed(2)));inp.className=(bhd===0)?'zero':'rec';}
+  else{var base=isBase?raw:toBase(raw,native);trSetEntry(yr,mo,parseFloat(base.toFixed(2)));inp.className=(base===0)?'zero':'rec';}
   renderTr();
 }
 
@@ -667,18 +724,18 @@ function renderProjStock(){
   if(empty)empty.style.display='none';
   if(!view)return;view.style.display='block';
   var item=wlData.find(function(w){return sKey(w)===projKey;});if(!item)return;
-  if(!projData[projKey])projData[projKey]={monthlyBHD:0,rate:defaultRate(item),horizonYears:null,viewMode:'fiveyr',currency:'BHD'};
+  if(!projData[projKey])projData[projKey]={monthlyBHD:0,rate:defaultRate(item),horizonYears:null,viewMode:'fiveyr',currency:baseCurrency};
   var pd=projData[projKey];
   var autoAmt=projGetAutoMonthly(projKey);
   if(autoAmt!==null&&pd.monthlyBHD===0){pd.monthlyBHD=autoAmt;}
   var horizYrs=pd.horizonYears||5;
   var monthly=pd.monthlyBHD||0;
   var rate=pd.rate!=null?pd.rate:defaultRate(item);
-  var displayCur=pd.currency||'BHD';
+  var displayCur=pd.currency||baseCurrency;
   var native=item.currency||'USD';
-  var curOpts='<option value="BHD"'+(displayCur==='BHD'?' selected':'')+'>BHD</option>';
-  if(native!=='BHD')curOpts+='<option value="'+native+'"'+(displayCur===native?' selected':'')+'>'+native+'</option>';
-  var dispMonthly=displayCur==='BHD'?monthly:fromBHD(monthly,displayCur);
+  var curOpts='<option value="'+baseCurrency+'"'+(displayCur===baseCurrency?' selected':'')+'>'+baseCurrency+'</option>';
+  if(native!==baseCurrency)curOpts+='<option value="'+native+'"'+(displayCur===native?' selected':'')+'>'+native+'</option>';
+  var dispMonthly=displayCur===baseCurrency?monthly:fromBase(monthly,displayCur);
   var html='<div class="card" style="margin-bottom:10px">'
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
       +'<div><div style="font-size:15px;font-weight:600;color:var(--tx)">'+item.sym+'</div>'
@@ -719,11 +776,11 @@ function projRenderStockChart(item,horizYrs,monthly,rate,displayCur){
   for(var y=1;y<=horizYrs;y++){
     labels.push(y===1?'1yr':y%5===0?y+'yr':'');
     var val=fv(rate/100,y,monthly);
-    data.push(Math.round(displayCur==='BHD'?val:fromBHD(val,displayCur)));
+    data.push(Math.round(displayCur===baseCurrency?val:fromBase(val,displayCur)));
   }
   var color='#8ab4f8';var dk=isDk();
   mkC('chart-proj-stock',{type:'line',data:{labels:labels,datasets:[{label:item.sym,data:data,borderColor:color,backgroundColor:dk?'rgba(138,180,248,0.1)':'rgba(138,180,248,0.08)',borderWidth:2.5,pointRadius:0,fill:true,tension:0.3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return displayCur+' '+c.raw.toLocaleString();}}}},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return fmtMoney(c.raw,{cur:displayCur});}}}},
     scales:{x:{ticks:tc(),grid:{color:gc()}},y:{ticks:Object.assign({},tc(),{callback:function(v){return v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1000)+'K';}}),grid:{color:gc()}}}}});
 }
 function projRenderStockTable(pd,horizYrs,monthly,rate,displayCur){
@@ -736,11 +793,11 @@ function projRenderStockTable(pd,horizYrs,monthly,rate,displayCur){
   years.forEach(function(y){
     var proj=fv(rate/100,y,monthly);var contrib=monthly*y*12;
     var growth=contrib>0?((proj/contrib-1)*100):0;
-    var dispProj=displayCur==='BHD'?proj:fromBHD(proj,displayCur);
-    var dispContrib=displayCur==='BHD'?contrib:fromBHD(contrib,displayCur);
+    var dispProj=displayCur===baseCurrency?proj:fromBase(proj,displayCur);
+    var dispContrib=displayCur===baseCurrency?contrib:fromBase(contrib,displayCur);
     rows+='<tr><td style="font-weight:600">'+(now+y)+'</td><td>'+y+' yr'+(y>1?'s':'')+'</td>'
-      +'<td>'+displayCur+' '+Math.round(dispContrib).toLocaleString()+'</td>'
-      +'<td style="color:var(--gr-v);font-weight:600">'+displayCur+' '+Math.round(dispProj).toLocaleString()+'</td>'
+      +'<td>'+fmtMoney(dispContrib,{cur:displayCur})+'</td>'
+      +'<td style="color:var(--gr-v);font-weight:600">'+fmtMoney(dispProj,{cur:displayCur})+'</td>'
       +'<td style="color:var(--gr-v)">+'+growth.toFixed(1)+'%</td></tr>';
   });
   ht('proj-stock-tbl',rows);
@@ -748,7 +805,7 @@ function projRenderStockTable(pd,horizYrs,monthly,rate,displayCur){
 function projUpdateMonthly(inp){
   if(!projKey||!projData[projKey])return;
   var pd=projData[projKey];var raw=parseFloat(inp.value)||0;
-  pd.monthlyBHD=pd.currency==='BHD'?raw:toBHD(raw,pd.currency);
+  pd.monthlyBHD=pd.currency===baseCurrency?raw:toBase(raw,pd.currency);
   saveAll();renderProjStock();renderProjOverview();
 }
 function projUpdateRate(inp){
@@ -793,18 +850,18 @@ function renderProjOverview(){
     YEARS.forEach(function(y,yi){var v=Math.round(fv(rate/100,y,monthly));rowVals.push(v);combined[yi]+=v;});
     datasets.push({label:item.sym,data:pts,borderColor:color,borderWidth:2,pointRadius:0,fill:false,tension:0.3});
     tableRows+='<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+color+';margin-right:5px"></span>'+item.sym+'</td>'
-      +'<td style="color:var(--mu)">BD '+Math.round(monthly).toLocaleString()+'</td>'
-      +rowVals.map(function(v){return '<td style="color:var(--gr-v)">BD '+v.toLocaleString()+'</td>';}).join('')+'</tr>';
+      +'<td style="color:var(--mu)">'+fmtMoney(monthly)+'</td>'
+      +rowVals.map(function(v){return '<td style="color:var(--gr-v)">'+fmtMoney(v)+'</td>';}).join('')+'</tr>';
   });
-  tableRows+='<tr style="border-top:1px solid var(--br)"><td style="font-weight:600">Combined</td><td style="font-weight:500;color:var(--mu)">BD '+Math.round(totalMonthly).toLocaleString()+'</td>'
-    +combined.map(function(v){return '<td style="color:var(--bl-v);font-weight:600">BD '+v.toLocaleString()+'</td>';}).join('')+'</tr>';
+  tableRows+='<tr style="border-top:1px solid var(--br)"><td style="font-weight:600">Combined</td><td style="font-weight:500;color:var(--mu)">'+fmtMoney(totalMonthly)+'</td>'
+    +combined.map(function(v){return '<td style="color:var(--bl-v);font-weight:600">'+fmtMoney(v)+'</td>';}).join('')+'</tr>';
   var labels=[];for(var i=1;i<=60;i++)labels.push(i===12?'1yr':i===36?'3yr':i===60?'5yr':'');
   var leg=stocks.map(function(item,ci){return '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu)"><span style="width:10px;height:3px;background:'+CHART_COLORS[ci%CHART_COLORS.length]+';border-radius:2px;display:inline-block"></span>'+item.sym+'</div>';}).join('');
   var html='<div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px;padding-top:4px">All Projections \u2014 5 year overview</div>'
     +'<div class="sg" style="margin-bottom:12px">'
       +'<div class="sc sc-nt"><div class="scl scl-nt">Stocks</div><div class="scv scv-nt">'+stocks.length+'</div></div>'
-      +'<div class="sc sc-bl"><div class="scl scl-bl">Total monthly</div><div class="scv scv-bl">BD '+Math.round(totalMonthly).toLocaleString()+'</div></div>'
-      +'<div class="sc sc-gr"><div class="scl scl-gr">5yr combined</div><div class="scv scv-gr">BD '+combined[2].toLocaleString()+'</div></div>'
+      +'<div class="sc sc-bl"><div class="scl scl-bl">Total monthly</div><div class="scv scv-bl">'+fmtMoney(totalMonthly)+'</div></div>'
+      +'<div class="sc sc-gr"><div class="scl scl-gr">5yr combined</div><div class="scv scv-gr">'+fmtMoney(combined[2])+'</div></div>'
     +'</div>'
     +'<div class="card" style="margin-bottom:10px"><div class="ct">Growth comparison</div>'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">'+leg+'</div>'
@@ -814,7 +871,7 @@ function renderProjOverview(){
       +'<div class="tw"><table><thead><tr><th>Stock</th><th>Monthly</th><th>1yr</th><th>3yr</th><th>5yr</th></tr></thead><tbody>'+tableRows+'</tbody></table></div></div>';
   ht('proj-overview',html);
   mkC('chart-proj-overview',{type:'line',data:{labels:labels,datasets:datasets},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return c.dataset.label+': BD '+c.raw.toLocaleString();}}}},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return c.dataset.label+': '+fmtMoney(c.raw);}}}},
     scales:{x:{ticks:Object.assign({},tc(),{maxTicksLimit:6}),grid:{color:gc()}},y:{ticks:Object.assign({},tc(),{callback:function(v){return v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1000)+'K';}}),grid:{color:gc()}}}}});
 }
 
