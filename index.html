@@ -99,6 +99,11 @@ input.da:focus{border-color:var(--bl-tx)}
 .ab:hover{border-color:var(--bl-tx);color:var(--bl-tx)}
 .scard{border-radius:var(--rad-c);padding:12px 14px;margin-bottom:10px;border:1.5px solid var(--gr-br);background:var(--gr-bg)}
 input.sinp-sal{font-size:28px;font-weight:800;letter-spacing:-.01em;color:var(--gr-v);background:var(--inp-bg);border:1.5px solid var(--gr-br);border-radius:var(--rad-r);padding:8px 12px;width:180px;max-width:100%;text-align:right;outline:none;font-family:inherit;font-variant-numeric:tabular-nums lining-nums}
+.scard-yw{border-color:var(--yw-br);background:var(--yw-bg)}
+input.sinp-living{font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--yw-v);background:var(--inp-bg);border:1.5px solid var(--yw-br);border-radius:var(--rad-r);padding:8px 12px;width:150px;max-width:100%;text-align:right;outline:none;font-family:inherit;font-variant-numeric:tabular-nums lining-nums}
+.lbbar{height:8px;border-radius:4px;background:var(--inp-bg);overflow:hidden;margin-top:10px}
+.lbbar-fill{height:100%;border-radius:4px;background:var(--gr-v)}
+.lbbar-fill.over{background:var(--rd-v)}
 .plab{display:flex;align-items:center;gap:8px;margin-bottom:5px}
 .ptit{font-size:13px;font-weight:600}.psub{font-size:11px;color:var(--mu);margin-bottom:8px;line-height:1.4}
 .prow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -278,6 +283,11 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
       <div class="psub">Your primary monthly income. Drives all budget calculations.</div>
       <div class="prow"><input class="sinp-sal" type="number" id="main-salary" value="0" min="0" step="50"><div><div class="punit" id="sal-unit">BHD / month</div><div class="peq fig-caption" id="sal-usd"></div></div></div>
     </div>
+    <div class="scard scard-yw">
+      <div class="plab"><div class="ptit" style="color:var(--yw-tx)">Living expense budget</div></div>
+      <div class="psub">A monthly baseline for day-to-day spending — food, groceries, going out. Every entry in the Spending tab is measured against this one pool. Tracked separately from your Expenses list below.</div>
+      <div class="prow"><input class="sinp-living" type="number" id="living-budget" value="0" min="0" step="10"><div><div class="punit" id="living-unit">BHD / month</div></div></div>
+    </div>
     <div class="card"><div class="ct ct-gr">Additional income sources</div><div class="dlist" id="income-list"></div><button class="ab" onclick="addR('income')"><span class="add-ic">+</span> Add income source</button></div>
     <div class="sg" id="inc-stats"></div>
   </div>
@@ -321,25 +331,20 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     </div>
     <div id="sp-cat-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
-  <div id="sp-recur-banner"></div>
   <div class="card">
     <div class="ct">Recent entries</div>
     <div id="sp-recent-list"></div>
   </div>
   <div class="btabs" id="sp-views">
     <button class="btab on" data-sv="month">This month</button>
-    <button class="btab" data-sv="unbudgeted">Unbudgeted</button>
     <button class="btab" data-sv="history">History</button>
   </div>
   <div class="bpn on" id="sp-pn-month">
     <div class="card" id="sp-month-hero"></div>
     <div class="sg" id="sp-month-stats"></div>
-    <div class="card"><div class="ct">By category vs budget</div>
-      <div class="tw"><table><thead><tr><th>Category</th><th class="num">Planned</th><th class="num">Actual</th><th class="num">Variance</th></tr></thead><tbody id="sp-month-tbl"></tbody></table></div>
+    <div class="card"><div class="ct">By category</div>
+      <div class="tw"><table><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">Share</th></tr></thead><tbody id="sp-month-tbl"></tbody></table></div>
     </div>
-  </div>
-  <div class="bpn" id="sp-pn-unbudgeted">
-    <div id="sp-unbudgeted-list"></div>
   </div>
   <div class="bpn" id="sp-pn-history">
     <div class="card"><div class="ct">Month-by-month spending</div><div class="tw" id="sp-history-tbl"></div></div>
@@ -507,6 +512,7 @@ function renderCurControls(){
   }
   sel.value=baseCurrency;
   var unit=el('sal-unit');if(unit)unit.textContent=baseCurrency+' / month';
+  var lunit=el('living-unit');if(lunit)lunit.textContent=baseCurrency+' / month';
 }
 function setBaseCurrency(code){
   if(!CUR[code]||code===baseCurrency)return;
@@ -524,7 +530,7 @@ function setBaseCurrency(code){
 // ── SAVE / LOAD ──
 function saveAll(){
   try{
-    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),baseCurrency:baseCurrency}));
+    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),livingBudget:gn('living-budget'),baseCurrency:baseCurrency}));
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
@@ -536,7 +542,7 @@ function normExp(d){return(d&&d.v===1)?{v:1,entries:d.entries||[],cats:(d.cats&&
 function loadAll(){
   try{
     var r=localStorage.getItem(SK);
-    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';}}
+    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;if(s.livingBudget!=null)el('living-budget').value=s.livingBudget;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';}}
     var wr=localStorage.getItem(WL_SK);if(wr)wlData=JSON.parse(wr);
     var tr=localStorage.getItem(TR_SK);if(tr)trData=JSON.parse(tr);
     var pr=localStorage.getItem(PROJ_SK);if(pr)projData=JSON.parse(pr);
@@ -648,9 +654,6 @@ function spCatTotals(monthKey){
   expData.entries.forEach(function(e){if(spMonthKey(e.date)===monthKey)totals[e.cat]=(totals[e.cat]||0)+e.amt;});
   return totals;
 }
-function spBudgetLineFor(cat){
-  return budgetLists.expenses.find(function(b){return (b.name||'').trim().toLowerCase()===cat.trim().toLowerCase();});
-}
 function spOrderedCats(){
   var used=[];
   expData.entries.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(e){
@@ -698,13 +701,13 @@ function spAddEntry(){
   expData.entries.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),date:date,cat:cat,amt:parseFloat(amt.toFixed(2)),note:note,recurring:false});
   saveAll();
   amtInp.value='';el('sp-note').value='';amtInp.focus();
-  spRenderChips();spRenderRecent();spRenderActiveView();spCheckRecurrence();
+  spRenderChips();spRenderRecent();spRenderActiveView();
 }
 function spDeleteEntry(id){
   var i=expData.entries.findIndex(function(e){return e.id===id;});
   if(i!==-1)expData.entries.splice(i,1);
   saveAll();
-  spRenderChips();spRenderRecent();spRenderActiveView();spCheckRecurrence();
+  spRenderChips();spRenderRecent();spRenderActiveView();
 }
 function spRenderRecent(){
   var recent=expData.entries.slice().sort(function(a,b){return b.date.localeCompare(a.date)||(''+b.id).localeCompare(''+a.id);}).slice(0,8);
@@ -715,18 +718,6 @@ function spRenderRecent(){
   }).join('');
   ht('sp-recent-list',html||'<div style="color:var(--dm);font-size:12px;padding:6px 0">No entries yet — add your first above.</div>');
 }
-function spAddCatToBudget(cat,amt){
-  if(!spBudgetLineFor(cat))budgetLists.expenses.push({name:cat,amt:parseFloat((amt||0).toFixed(2))});
-  if(expData.dismissed.indexOf(cat)===-1)expData.dismissed.push(cat);
-  renderL('expenses');
-  recalcBudget();
-  saveAll();
-  spRenderActiveView();spCheckRecurrence();
-}
-function spDismiss(cat){
-  if(expData.dismissed.indexOf(cat)===-1)expData.dismissed.push(cat);
-  saveAll();spCheckRecurrence();
-}
 function spSetView(v){
   spActiveView=v;
   document.querySelectorAll('#sp-views .btab').forEach(function(b){b.classList.toggle('on',b.dataset.sv===v);});
@@ -736,7 +727,6 @@ function spSetView(v){
 }
 function spRenderActiveView(){
   if(spActiveView==='month')spRenderMonth();
-  else if(spActiveView==='unbudgeted')spRenderUnbudgeted();
   else if(spActiveView==='history')spRenderHistory();
 }
 function spRenderMonth(){
@@ -744,32 +734,26 @@ function spRenderMonth(){
   var totals=spCatTotals(mk);
   var cats=Object.keys(totals).sort(function(a,b){return totals[b]-totals[a];});
   var total=cats.reduce(function(s,c){return s+totals[c];},0);
-  var unbud=cats.filter(function(c){return !spBudgetLineFor(c);}).length;
-  ht('sp-month-hero','<div class="scl">Total spent — '+MN[new Date().getMonth()]+'</div><div class="fig-hero num">'+fmtMoney(total)+'</div>');
+  var budget=gn('living-budget');
+  var over=budget>0&&total>budget;
+  var pct=budget>0?Math.min(100,Math.round(total/budget*100)):0;
+  var hero='<div class="scl">Total spent — '+MN[new Date().getMonth()]+'</div><div class="fig-hero num'+(over?' amt-over':'')+'">'+fmtMoney(total)+'</div>';
+  if(budget>0){
+    hero+='<div class="lbbar"><div class="lbbar-fill'+(over?' over':'')+'" style="width:'+pct+'%"></div></div>'
+      +'<div class="fig-caption" style="margin-top:6px">'+(over
+        ?'<span class="amt-over">Over budget by '+fmtMoney(total-budget)+'</span>'
+        :fmtMoney(budget-total)+' left of '+fmtMoney(budget)+' living expense budget')+'</div>';
+  }else{
+    hero+='<div class="fig-caption" style="margin-top:6px">Set a living expense budget in Budget → Income to track spending against a limit.</div>';
+  }
+  ht('sp-month-hero',hero);
   ht('sp-month-stats',sc('Categories',cats.length,'with spending','sc-nt','scv-nt')
-    +sc('Unbudgeted',unbud,unbud===1?'category':'categories','sc-yw','scv-yw'));
+    +sc('Living budget',budget>0?fmtMoney(budget):'—','set in Income','sc-yw','scv-yw'));
   var rows=cats.map(function(c){
-    var actual=totals[c];var line=spBudgetLineFor(c);var planned=line?line.amt:null;var varCell;
-    if(planned!=null){
-      var v=actual-planned;var over=v>0;
-      varCell='<td class="num fig-secondary '+(over?'amt-over':'amt-under')+'">'+(over?'+':'')+fmtMoney(v)+'</td>';
-    }else{
-      varCell='<td class="num"><span class="mtag tdef">Unbudgeted</span></td>';
-    }
-    return '<tr><td>'+esc(c)+'</td><td class="num fig-secondary">'+(planned!=null?fmtMoney(planned):'—')+'</td><td class="num fig-secondary">'+fmtMoney(actual)+'</td>'+varCell+'</tr>';
+    var actual=totals[c];var share=total>0?(actual/total*100):0;
+    return '<tr><td>'+esc(c)+'</td><td class="num fig-secondary">'+fmtMoney(actual)+'</td><td class="num fig-secondary" style="color:var(--dm)">'+share.toFixed(0)+'%</td></tr>';
   }).join('');
-  ht('sp-month-tbl',rows||'<tr><td colspan="4" style="color:var(--dm);text-align:center">No spending recorded this month yet.</td></tr>');
-}
-function spRenderUnbudgeted(){
-  var mk=spCurMonthKey();
-  var totals=spCatTotals(mk);
-  var cats=Object.keys(totals).filter(function(c){return !spBudgetLineFor(c);}).sort(function(a,b){return totals[b]-totals[a];});
-  if(!cats.length){ht('sp-unbudgeted-list','<div style="padding:24px;text-align:center;color:var(--dm);font-size:13px;border:1px dashed var(--br);border-radius:10px">No unbudgeted spending this month.</div>');return;}
-  var html=cats.map(function(c){
-    return '<div class="rr"><div><div style="font-weight:600">'+esc(c)+'</div><div class="rnt">'+fmtMoney(totals[c])+' this month, not in your budget</div></div>'
-      +'<button class="btn" data-sp-add-budget data-cat="'+esc(c)+'" data-amt="'+totals[c].toFixed(2)+'">+ Add to budget</button></div>';
-  }).join('');
-  ht('sp-unbudgeted-list',html);
+  ht('sp-month-tbl',rows||'<tr><td colspan="3" style="color:var(--dm);text-align:center">No spending recorded this month yet.</td></tr>');
 }
 function spRenderHistory(){
   var monthsSet={};
@@ -793,27 +777,9 @@ function spRenderHistory(){
   }).join('');
   ht('sp-history-tbl','<table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>');
 }
-function spCheckRecurrence(){
-  var banner=el('sp-recur-banner');if(!banner)return;
-  var now=new Date();var months=[];
-  for(var i=0;i<3;i++){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
-  var totalsByMonth=months.map(spCatTotals);
-  var allCats={};expData.entries.forEach(function(e){allCats[e.cat]=true;});
-  var candidates=Object.keys(allCats).filter(function(c){
-    return totalsByMonth.every(function(t){return(t[c]||0)>0;})&&!spBudgetLineFor(c)&&expData.dismissed.indexOf(c)===-1;
-  });
-  ht('sp-recur-banner',candidates.map(function(c){
-    return '<div class="note" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--yw-br);background:var(--yw-bg);color:var(--yw-tx)">'
-      +'<span>'+esc(c)+' has appeared three months running and isn’t in your budget. Add it?</span>'
-      +'<span style="display:flex;gap:6px;flex-shrink:0">'
-        +'<button class="btn" data-sp-add-budget data-cat="'+esc(c)+'" data-amt="'+(totalsByMonth[0][c]||0).toFixed(2)+'">Add</button>'
-        +'<button class="btn" data-sp-dismiss data-cat="'+esc(c)+'">Dismiss</button>'
-      +'</span></div>';
-  }).join(''));
-}
 function spInit(){
   if(!el('sp-date').value)el('sp-date').value=todayStr();
-  spRenderChips();spRenderRecent();spCheckRecurrence();spSetView(spActiveView);
+  spRenderChips();spRenderRecent();spSetView(spActiveView);
 }
 
 // TRACKER
@@ -1369,8 +1335,6 @@ el('sp-views').addEventListener('click',function(e){
 el('tab-spending').addEventListener('click',function(e){
   var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
   var chip=e.target.closest('.sp-chip');if(chip){spSelectedCat=chip.dataset.cat;spRenderChips();return;}
-  var addBtn=e.target.closest('[data-sp-add-budget]');if(addBtn){spAddCatToBudget(addBtn.dataset.cat,parseFloat(addBtn.dataset.amt)||0);return;}
-  var dismissBtn=e.target.closest('[data-sp-dismiss]');if(dismissBtn){spDismiss(dismissBtn.dataset.cat);return;}
   var delEntry=e.target.closest('[data-sp-del]');if(delEntry){spDeleteEntry(delEntry.dataset.id);return;}
 });
 el('tab-spending').addEventListener('keydown',function(e){
@@ -1386,6 +1350,7 @@ document.querySelectorAll('.btabs').forEach(function(g){
 });
 document.querySelectorAll('.mov').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('on');});});
 el('main-salary').addEventListener('input',recalcBudget);
+el('living-budget').addEventListener('input',function(){saveAll();spRenderActiveView();});
 
 // ── INIT ──
 loadTheme();
