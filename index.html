@@ -270,9 +270,9 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     Enable <strong style="color:var(--bl-tx)">Track</strong> on a stock in the Watchlist tab to start tracking it here.
   </div>
   <div id="tr-content" style="display:none">
-    <div class="card" id="tr-months"></div>
+    <div class="card"><div id="tr-months"></div><div class="note" id="tr-help"></div></div>
     <div class="ysum" id="tr-sum"></div>
-    <div class="card" style="margin-top:10px"><div class="ct">Cumulative invested (BHD)</div><div class="cw"><canvas id="chart-tr"></canvas></div></div>
+    <div class="card" style="margin-top:10px"><div class="ct">Cumulative invested (BHD) — solid actual, dashed projected</div><div class="cw"><canvas id="chart-tr"></canvas></div></div>
   </div>
 </div>
 
@@ -564,13 +564,15 @@ function renderTr(){
   var item=wlData.find(function(w){return sKey(w)===trKey;});
   var native=item?(item.currency||'USD'):'USD';
   var now=new Date();var cy=now.getFullYear(),cm=now.getMonth()+1;
-  var html='',totBHD=0,recs=0,cumBHD=0;var cArr=[],labs=[];
+  var html='',totBHD=0,recs=0,cumBHD=0,cumProj=0;var cArr=[],cProj=[],labs=[];
   for(var m=1;m<=12;m++){
     var eff=trGetEff(sy,m);
     var yObj=trData[trKey].years.find(function(y){return y.year===sy;});
     var rec=yObj?yObj.entries.find(function(e){return e.month===m;}):null;
     var isPast=sy<cy||(sy===cy&&m<cm);var isCur=sy===cy&&m===cm;
-    cumBHD+=eff;cArr.push(Math.round(cumBHD));labs.push(MN[m-1].slice(0,3));
+    var isFuture=sy>cy||(sy===cy&&m>cm);
+    cumProj+=eff;if(!isFuture)cumBHD+=eff;
+    cArr.push(isFuture?null:Math.round(cumBHD));cProj.push(Math.round(cumProj));labs.push(MN[m-1].slice(0,3));
     if(rec){totBHD+=rec.amtBHD;recs++;}
     var nc='mn'+(isCur?' cur':isPast?' past':' fut');
     var inputVal='',ph='',tag='',conv='',icls='',xBtn='';
@@ -584,10 +586,12 @@ function renderTr(){
       ph=isBHD?Math.round(eff):parseFloat(fromBHD(eff,native).toFixed(1));
       tag=eff>0?'<span class="mtag tdef">Carried</span>':'<span class="mtag tdef">\u2014</span>';
     }else{ph='\u2014';tag='<span class="mtag tdef">Future</span>';}
+    var cumLabel=isFuture?'Projected BD '+cumProj.toLocaleString():'Total BD '+Math.round(cumBHD).toLocaleString();
+    var cumStyle=isFuture?' style="color:var(--dm)"':'';
     html+='<div class="mr"><div class="'+nc+'">'+MN[m-1]+'</div>'
       +'<div class="mai"><input type="number" placeholder="'+ph+'" value="'+inputVal+'" min="0" step="'+(isBHD?10:1)+'" class="'+icls+'" onchange="handleTrInput('+sy+','+m+',this)"></div>'
       +'<div class="mcl">'+(isBHD?'BHD':native)+'</div><div class="mcv">'+conv+'</div>'
-      +tag+xBtn+'<div class="mcum">Total BD '+Math.round(cumBHD).toLocaleString()+'</div></div>';
+      +tag+xBtn+'<div class="mcum"'+cumStyle+'>'+cumLabel+'</div></div>';
   }
   ht('tr-months',html);
   var avg=recs>0?(totBHD/recs):0;
@@ -596,10 +600,15 @@ function renderTr(){
     +'<div class="ysi"><div class="ysl">Recorded</div><div class="ysv">'+recs+' / 12</div></div>'
     +'<div class="ysi"><div class="ysl">Total recorded</div><div class="ysv">BD '+Math.round(totBHD).toLocaleString()+'</div></div>'
     +'<div class="ysi"><div class="ysl">Cumulative</div><div class="ysv">BD '+Math.round(cumBHD).toLocaleString()+'</div></div>'
+    +'<div class="ysi"><div class="ysl">Projected year-end</div><div class="ysv" style="color:var(--dm)">BD '+Math.round(cumProj).toLocaleString()+'</div></div>'
     +'<div class="ysi"><div class="ysl">Avg / month</div><div class="ysv">BD '+Math.round(avg).toLocaleString()+'</div></div></div>');
+  ht('tr-help','Cumulative reflects what\u2019s actually been committed through the current month and stops there. Projected year-end shows where the total lands if the standing monthly rate continues unchanged. To stop contributions, record a month as <strong>0</strong> \u2014 otherwise the last recorded amount keeps carrying forward.');
   var dk=isDk();
-  mkC('chart-tr',{type:'line',data:{labels:labs,datasets:[{label:'Cumulative BD',data:cArr,borderColor:dk?'#6dbf67':'#2d7a2a',backgroundColor:dk?'rgba(109,191,103,0.1)':'rgba(45,122,42,0.08)',borderWidth:2.5,pointRadius:3,fill:true}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return 'BD '+c.raw.toLocaleString();}}}},
+  mkC('chart-tr',{type:'line',data:{labels:labs,datasets:[
+    {label:'Cumulative BD',data:cArr,borderColor:dk?'#6dbf67':'#2d7a2a',backgroundColor:dk?'rgba(109,191,103,0.1)':'rgba(45,122,42,0.08)',borderWidth:2.5,pointRadius:3,fill:true,spanGaps:false},
+    {label:'Projected BD',data:cProj,borderColor:dk?'#6dbf67':'#2d7a2a',borderDash:[4,4],borderWidth:2,pointRadius:0,fill:false}
+  ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return c.dataset.label+': BD '+c.raw.toLocaleString();}}}},
     scales:{x:{ticks:tc(),grid:{color:gc()}},y:{ticks:Object.assign({},tc(),{callback:function(v){return 'BD '+v.toLocaleString();}}),grid:{color:gc()}}}}});
 }
 function handleTrInput(yr,mo,inp){
