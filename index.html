@@ -327,8 +327,8 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 </div>
 </div>
 
-<div class="mov" id="m-exp"><div class="modal"><h2>Export data</h2><p class="mds">Copy and save. Use Import on any device to restore.</p><textarea id="exp-tx" readonly></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-exp')">Close</button><button class="bprim" onclick="cpExp()">Copy to clipboard</button></div></div></div>
-<div class="mov" id="m-imp"><div class="modal"><h2>Import data</h2><p class="mds">Paste exported data to restore. Overwrites current data.</p><textarea id="imp-tx" placeholder="Paste here..."></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-imp')">Cancel</button><button class="bprim" onclick="doImp()">Import and restore</button></div></div></div>
+<div class="mov" id="m-exp"><div class="modal"><h2>Export data</h2><p class="mds">Includes budget, watchlist, tracker and projection data. Copy or download, then use Import on any device to restore.</p><textarea id="exp-tx" readonly></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-exp')">Close</button><button class="bsec" onclick="dlExp()">Download backup</button><button class="bprim" onclick="cpExp()">Copy to clipboard</button></div></div></div>
+<div class="mov" id="m-imp"><div class="modal"><h2>Import data</h2><p class="mds">Paste exported data, or choose a backup file, to restore. Overwrites current data.</p><input type="file" id="imp-file" accept=".json,application/json" onchange="impFileChosen(this)" style="margin-bottom:10px;font-size:12px;color:var(--mu)"><textarea id="imp-tx" placeholder="Paste here..."></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-imp')">Cancel</button><button class="bprim" onclick="doImp()">Import and restore</button></div></div></div>
 
 <script>
 var SK='vault11';
@@ -943,17 +943,62 @@ function wlRender(){
 function wlInit(){wlLoad();wlRender();}
 
 // ── EXPORT / IMPORT ──
-function openExp(){saveAll();el('exp-tx').value=localStorage.getItem(SK)||'';el('m-exp').classList.add('on');}
+function openExp(){
+  saveAll();
+  el('exp-tx').value=JSON.stringify({
+    vault:'vault-backup',v:12,
+    budget:JSON.parse(localStorage.getItem(SK)||'null'),
+    wl:wlData,tr:trData,proj:projData,
+    theme:localStorage.getItem(THEME_SK)||'dark'
+  });
+  el('m-exp').classList.add('on');
+}
 function cpExp(){el('exp-tx').select();document.execCommand('copy');var b=el('m-exp').querySelector('.bprim');b.textContent='Copied!';setTimeout(function(){b.textContent='Copy to clipboard';},2000);}
-function openImp(){el('imp-tx').value='';el('m-imp').classList.add('on');}
+function dlExp(){
+  saveAll();
+  var data={
+    vault:'vault-backup',v:12,
+    budget:JSON.parse(localStorage.getItem(SK)||'null'),
+    wl:wlData,tr:trData,proj:projData,
+    theme:localStorage.getItem(THEME_SK)||'dark'
+  };
+  var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var d=new Date(),pad=function(n){return String(n).padStart(2,'0');};
+  var a=document.createElement('a');
+  a.href=url;a.download='vault-backup-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+}
+function openImp(){el('imp-tx').value='';el('imp-file').value='';el('m-imp').classList.add('on');}
+function impFileChosen(inp){
+  var f=inp.files&&inp.files[0];if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(e){el('imp-tx').value=e.target.result;};
+  reader.readAsText(f);
+}
 function doImp(){
   try{
-    var r=el('imp-tx').value.trim();var p=JSON.parse(r);
-    if(p.v!==11)throw new Error('wrong version');
-    localStorage.setItem(SK,r);closeM('m-imp');wlData=[];trData={};projData={};budgetLists={income:[],expenses:[],savings:[]};
-    loadAll();['income','expenses','savings'].forEach(renderL);
+    var p=JSON.parse(el('imp-tx').value.trim()),budget=null,legacy=false;
+    if(p.vault==='vault-backup'){
+      budget=p.budget;
+      wlData=p.wl||[];trData=p.tr||{};projData=p.proj||{};
+      if(p.theme)localStorage.setItem(THEME_SK,p.theme);
+    }else if(p.v===11){
+      budget=p;wlData=[];trData={};projData={};legacy=true;
+    }else throw new Error('unrecognised');
+    if(!budget)throw new Error('no budget data');
+    localStorage.setItem(SK,JSON.stringify(budget));
+    localStorage.setItem(WL_SK,JSON.stringify(wlData));
+    localStorage.setItem(TR_SK,JSON.stringify(trData));
+    localStorage.setItem(PROJ_SK,JSON.stringify(projData));
+    budgetLists={income:[],expenses:[],savings:[]};
+    loadAll();loadTheme();
+    ['income','expenses','savings'].forEach(renderL);
     wlRender();trRefreshDropdown();projRefreshDropdown();recalcBudget();
-  }catch(e){alert('Import failed. Make sure you paste the complete exported text from another Vault instance.');}
+    closeM('m-imp');
+    if(legacy)alert('Imported an older export — budget only. Watchlist and tracker data were not in that file.');
+  }catch(e){alert('Import failed. Paste the complete exported text from another Vault instance.');}
 }
 function doReset(){if(confirm('Reset all data? This cannot be undone.')){[SK,WL_SK,TR_SK,PROJ_SK].forEach(function(k){localStorage.removeItem(k);});location.reload();}}
 function closeM(id){el(id).classList.remove('on');}
