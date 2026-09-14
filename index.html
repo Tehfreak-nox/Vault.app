@@ -354,7 +354,7 @@ function isDk(){return document.documentElement.getAttribute('data-theme')!=='li
 function gc(){return isDk()?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)';}
 function tc(){return{color:isDk()?'#949ba4':'#6b7280',font:{size:10}};}
 function fmK(v){return v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1000)+'K';}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;');}
 function tl(t){return budgetLists[t].reduce(function(s,r){return s+(r.amt||0);},0);}
 function bd(v){v=Math.max(v||0,0);if(v>=1e6)return 'BD '+(v/1e6).toFixed(2)+'M';if(v>=1000)return 'BD '+Math.round(v/1000).toLocaleString()+'K';return 'BD '+Math.round(v).toLocaleString();}
 function fv(r,y,p){if(!r||!y||!p)return 0;var rm=r/12,n=y*12;return p*((Math.pow(1+rm,n)-1)/rm)*(1+rm);}
@@ -415,7 +415,7 @@ async function projFetchFX(){
   fxData.status=ok?'ok':'fail';
   fxData.lastUpdated=new Date().toLocaleString();
   renderFXBar();
-  if(btn){btn.textContent=ok?'\u2713 Done':'\u2715 Failed';setTimeout(function(){if(btn)btn.textContent='\u9711 Refresh rates';},2500);}
+  if(btn){btn.textContent=ok?'\u2713 Done':'\u2715 Failed';setTimeout(function(){if(btn)btn.textContent='\u25ef Refresh rates';},2500);}
   renderProjOverview();
 }
 function renderFXBar(){
@@ -462,9 +462,9 @@ function recalcBudget(){
   ht('sav-stats',sc('Total savings','BD '+Math.round(aSav).toLocaleString()+'/mo',budgetLists.savings.length+' items','sc-bl','scv-bl')+sc('Savings rate',totI>0?(aSav/totI*100).toFixed(1)+'%':'--','Of income','sc-bl','scv-bl')+sc('Buffer','BD '+Math.round(buf).toLocaleString()+'/mo','After all outgoings',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
   ht('bkd-stats',sc('Total income','BD '+Math.round(totI).toLocaleString()+'/mo','All sources','sc-gr','scv-gr')+sc('Total expenses','BD '+Math.round(totE).toLocaleString()+'/mo',budgetLists.expenses.length+' items','sc-rd','scv-rd')+sc('Total savings','BD '+Math.round(aSav).toLocaleString()+'/mo',budgetLists.savings.length+' items','sc-bl','scv-bl')+sc('Buffer','BD '+Math.round(buf).toLocaleString()+'/mo','Free cash',buf>=0?'sc-yw':'sc-rd',buf>=0?'scv-yw':'scv-rd'));
   var bH='';
-  budgetLists.expenses.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+item.name+'">'+item.name+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--rd-v)"></div></div><div class="bv" style="color:var(--rd-v)">BD '+item.amt+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
+  budgetLists.expenses.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+esc(item.name)+'">'+esc(item.name)+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--rd-v)"></div></div><div class="bv" style="color:var(--rd-v)">BD '+item.amt+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
   if(aSav>0)bH+='<hr class="bdiv">';
-  budgetLists.savings.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+item.name+'">'+item.name+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--bl-v)"></div></div><div class="bv" style="color:var(--bl-v)">BD '+item.amt+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
+  budgetLists.savings.forEach(function(item){if(!item.amt)return;var w=totI>0?Math.min(100,item.amt/totI*100).toFixed(1):0;bH+='<div class="br0"><div class="bn" title="'+esc(item.name)+'">'+esc(item.name)+'</div><div class="bt"><div class="bf" style="width:'+w+'%;background:var(--bl-v)"></div></div><div class="bv" style="color:var(--bl-v)">BD '+item.amt+'</div><div class="bp">'+(totI>0?(item.amt/totI*100).toFixed(1):0)+'%</div></div>';});
   if(buf>0){var bw=totI>0?Math.min(100,buf/totI*100).toFixed(1):0;bH+='<hr class="bdiv"><div class="br0"><div class="bn" style="color:var(--yw-v);font-weight:600">Buffer</div><div class="bt"><div class="bf" style="width:'+bw+'%;background:var(--yw-v)"></div></div><div class="bv" style="color:var(--yw-v)">BD '+Math.round(buf)+'</div><div class="bp">'+(totI>0?(buf/totI*100).toFixed(1):0)+'%</div></div>';}
   ht('budget-bars',bH||'<div style="color:var(--dm);font-size:12px">Add expenses and savings to see breakdown.</div>');
   var pL=[],pD=[],pC=[];
