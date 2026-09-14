@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Vault">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#32343a">
 <title>Vault</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
@@ -20,8 +22,10 @@
   --tab-bg:#313338;--tab-c:#fff;--tab-br:#3a3d44;
   --rad-c:12px;--rad-r:6px;
   --focus:#5b8dee;
+  color-scheme:dark;
 }
 [data-theme="light"]{
+  color-scheme:light;
   --bg:#f6f7f9;--sf:#fff;--top:#fff;--br:#e3e5e8;
   --tx:#1c1e22;--mu:#6b7280;--dm:#6e7480;
   --gr-bg:#edf7ec;--gr-br:#b8e0b6;--gr-tx:#3a8a36;--gr-v:#2d7a2a;
@@ -497,17 +501,24 @@ function toBase(amt,cur){if(!cur||cur===baseCurrency)return amt;var r=fxData.rat
 function fromBase(amt,cur){if(!cur||cur===baseCurrency)return amt;var r=fxData.rates[cur];return r?amt/r:amt;}
 
 // ── THEME ──
+function applyThemeColorMeta(t){
+  var m=document.querySelector('meta[name="theme-color"]');
+  if(m)m.setAttribute('content',t==='light'?'#f6f7f9':'#32343a');
+}
 function toggleTheme(){
   var dk=document.documentElement.getAttribute('data-theme')==='dark';
-  document.documentElement.setAttribute('data-theme',dk?'light':'dark');
+  var t=dk?'light':'dark';
+  document.documentElement.setAttribute('data-theme',t);
   el('theme-btn').textContent=dk?'\u263D Dark':'\u2600 Light';
-  localStorage.setItem(THEME_SK,dk?'light':'dark');
+  localStorage.setItem(THEME_SK,t);
+  applyThemeColorMeta(t);
   recalcBudget();
 }
 function loadTheme(){
   var t=localStorage.getItem(THEME_SK)||'dark';
   document.documentElement.setAttribute('data-theme',t);
   el('theme-btn').textContent=(t==='light')?'\u263D Dark':'\u2600 Light';
+  applyThemeColorMeta(t);
 }
 
 // —— CURRENCY ——
