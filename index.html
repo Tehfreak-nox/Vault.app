@@ -250,14 +250,8 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
   </div>
   <div class="top-r">
     <span class="savb" id="savb">Saved</span>
-    <div class="curwrap">
-      <select class="sinp" id="cur-sel" onchange="setBaseCurrency(this.value)" style="font-size:11px;padding:4px 8px" title="Base currency"></select>
-      <span class="curhint">Changes the currency label. Figures are not converted.</span>
-    </div>
-    <button class="btn" onclick="openExp()">Export</button>
-    <button class="btn" onclick="openImp()">Import</button>
     <button class="btn" id="theme-btn" onclick="toggleTheme()">&#9790; Light</button>
-    <button class="btn-rd" onclick="doReset()">Reset</button>
+    <button class="btn" onclick="openSettings()" aria-label="Settings" title="Settings">&#9881; Settings</button>
   </div>
 </div>
 
@@ -303,6 +297,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 
 <!-- SPENDING -->
 <div class="panel" id="tab-spending">
+  <div class="scard scard-yw" id="sp-budget-card"></div>
   <div class="card" id="sp-quickadd">
     <div class="ct">Add spending</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
@@ -335,12 +330,6 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     <button class="btab" data-sv="history">History</button>
   </div>
   <div class="bpn on" id="sp-pn-month">
-    <div class="scard scard-yw">
-      <div class="plab"><div class="ptit" style="color:var(--yw-tx)">Living expense budget</div></div>
-      <div class="psub">A monthly baseline for day-to-day spending — food, groceries, going out. Every entry above is measured against this one pool.</div>
-      <div class="prow"><input class="sinp-living" type="number" id="living-budget" value="0" min="0" step="10"><div><div class="punit" id="living-unit">BHD / month</div></div></div>
-    </div>
-    <div class="card" id="sp-month-hero"></div>
     <div class="sg" id="sp-month-stats"></div>
     <div class="card"><div class="ct">By category</div>
       <div class="tw"><table><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">Share</th></tr></thead><tbody id="sp-month-tbl"></tbody></table></div>
@@ -430,6 +419,23 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 </div>
 </div>
 
+<div class="mov" id="m-settings"><div class="modal">
+  <h2>Settings</h2>
+  <p class="mds">Currency, backups, and reset — all in one place.</p>
+  <label class="lbl">Base currency</label>
+  <select class="sinp" id="cur-sel" onchange="setBaseCurrency(this.value)" style="width:100%"></select>
+  <div class="curhint" style="margin:4px 0 16px">Changes the currency label. Figures are not converted.</div>
+  <label class="lbl">Backup</label>
+  <div class="mds" style="margin-bottom:10px">Download everything on this device — budget, spending, tracker, projections, watchlist — as one file. If you switch devices, nothing carries over on its own; use this file to bring it all back.</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <button class="bprim" onclick="dlExp()">Download all data</button>
+    <button class="bsec" onclick="closeM('m-settings');openImp()">Restore from file</button>
+    <button class="btn" onclick="closeM('m-settings');openExp()">Copy as text instead</button>
+  </div>
+  <label class="lbl">Danger zone</label>
+  <button class="btn-rd" onclick="doReset()">Reset all data</button>
+  <div class="mbt"><button class="bsec" onclick="closeM('m-settings')">Close</button></div>
+</div></div>
 <div class="mov" id="m-exp"><div class="modal"><h2>Export data</h2><p class="mds">Includes budget, watchlist, tracker and projection data. Copy or download, then use Import on any device to restore.</p><textarea id="exp-tx" readonly></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-exp')">Close</button><button class="bsec" onclick="dlExp()">Download backup</button><button class="bprim" onclick="cpExp()">Copy to clipboard</button></div></div></div>
 <div class="mov" id="m-imp"><div class="modal"><h2>Import data</h2><p class="mds">Paste exported data, or choose a backup file, to restore. Overwrites current data.</p><input type="file" id="imp-file" accept=".json,application/json" onchange="impFileChosen(this)" style="margin-bottom:10px;font-size:12px;color:var(--mu)"><textarea id="imp-tx" placeholder="Paste here..."></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-imp')">Cancel</button><button class="bprim" onclick="doImp()">Import and restore</button></div></div></div>
 
@@ -447,7 +453,7 @@ var wlData=[];
 var trData={};
 var projData={};
 var expDefaultCats=['Groceries','Eating out','Fuel','Games','Date night','Gifts','Other'];
-var expData={v:1,entries:[],cats:expDefaultCats.slice(),dismissed:[]};
+var expData={v:1,entries:[],cats:expDefaultCats.slice(),dismissed:[],budgets:[]};
 var spSelectedCat='';
 var spCatEditMode=false;
 var spActiveView='month';
@@ -512,7 +518,6 @@ function renderCurControls(){
   }
   sel.value=baseCurrency;
   var unit=el('sal-unit');if(unit)unit.textContent=baseCurrency+' / month';
-  var lunit=el('living-unit');if(lunit)lunit.textContent=baseCurrency+' / month';
 }
 function setBaseCurrency(code){
   if(!CUR[code]||code===baseCurrency)return;
@@ -525,12 +530,13 @@ function setBaseCurrency(code){
   if(trKey)renderTr();
   if(projKey)renderProjStock();
   renderProjOverview();
+  spRenderBudgetCard();spRenderActiveView();
 }
 
 // ── SAVE / LOAD ──
 function saveAll(){
   try{
-    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),livingBudget:gn('living-budget'),baseCurrency:baseCurrency}));
+    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),baseCurrency:baseCurrency}));
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
@@ -538,11 +544,11 @@ function saveAll(){
   }catch(e){}
   flash();
 }
-function normExp(d){return(d&&d.v===1)?{v:1,entries:d.entries||[],cats:(d.cats&&d.cats.length)?d.cats:expDefaultCats.slice(),dismissed:d.dismissed||[]}:{v:1,entries:[],cats:expDefaultCats.slice(),dismissed:[]};}
+function normExp(d){return(d&&d.v===1)?{v:1,entries:d.entries||[],cats:(d.cats&&d.cats.length)?d.cats:expDefaultCats.slice(),dismissed:d.dismissed||[],budgets:d.budgets||[]}:{v:1,entries:[],cats:expDefaultCats.slice(),dismissed:[],budgets:[]};}
 function loadAll(){
   try{
     var r=localStorage.getItem(SK);
-    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;if(s.livingBudget!=null)el('living-budget').value=s.livingBudget;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';}}
+    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';}}
     var wr=localStorage.getItem(WL_SK);if(wr)wlData=JSON.parse(wr);
     var tr=localStorage.getItem(TR_SK);if(tr)trData=JSON.parse(tr);
     var pr=localStorage.getItem(PROJ_SK);if(pr)projData=JSON.parse(pr);
@@ -654,6 +660,19 @@ function spCatTotals(monthKey){
   expData.entries.forEach(function(e){if(spMonthKey(e.date)===monthKey)totals[e.cat]=(totals[e.cat]||0)+e.amt;});
   return totals;
 }
+function spBudgetEff(monthKey){
+  var sorted=expData.budgets.slice().sort(function(a,b){return a.month.localeCompare(b.month);});
+  var exact=sorted.find(function(b){return b.month===monthKey;});
+  if(exact)return exact.amt;
+  var before=sorted.filter(function(b){return b.month<monthKey;});
+  return before.length?before[before.length-1].amt:0;
+}
+function spSetBudget(monthKey,amt){
+  var i=expData.budgets.findIndex(function(b){return b.month===monthKey;});
+  if(i!==-1)expData.budgets[i].amt=amt;
+  else expData.budgets.push({month:monthKey,amt:amt});
+  saveAll();
+}
 function spOrderedCats(){
   var used=[];
   expData.entries.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(e){
@@ -701,13 +720,13 @@ function spAddEntry(){
   expData.entries.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),date:date,cat:cat,amt:parseFloat(amt.toFixed(2)),note:note,recurring:false});
   saveAll();
   amtInp.value='';el('sp-note').value='';amtInp.focus();
-  spRenderChips();spRenderRecent();spRenderActiveView();
+  spRenderChips();spRenderRecent();spRenderBudgetCard();spRenderActiveView();
 }
 function spDeleteEntry(id){
   var i=expData.entries.findIndex(function(e){return e.id===id;});
   if(i!==-1)expData.entries.splice(i,1);
   saveAll();
-  spRenderChips();spRenderRecent();spRenderActiveView();
+  spRenderChips();spRenderRecent();spRenderBudgetCard();spRenderActiveView();
 }
 function spRenderRecent(){
   var recent=expData.entries.slice().sort(function(a,b){return b.date.localeCompare(a.date)||(''+b.id).localeCompare(''+a.id);}).slice(0,8);
@@ -729,26 +748,34 @@ function spRenderActiveView(){
   if(spActiveView==='month')spRenderMonth();
   else if(spActiveView==='history')spRenderHistory();
 }
+function spRenderBudgetCard(){
+  var mk=spCurMonthKey();
+  var budget=spBudgetEff(mk);
+  var totals=spCatTotals(mk);
+  var total=Object.keys(totals).reduce(function(s,c){return s+totals[c];},0);
+  var over=budget>0&&total>budget;
+  var pct=budget>0?Math.min(100,Math.round(total/budget*100)):0;
+  var html='<div class="plab"><div class="ptit" style="color:var(--yw-tx)">Living expense budget</div></div>'
+    +'<div class="prow" style="margin-bottom:10px"><input class="sinp-living" type="number" id="living-budget" value="'+(budget||'')+'" placeholder="0" min="0" step="10"><div><div class="punit">'+baseCurrency+' / month</div></div></div>'
+    +'<div class="scl">Total spent — '+MN[new Date().getMonth()]+'</div>'
+    +'<div class="fig-hero num'+(over?' amt-over':'')+'">'+fmtMoney(total)+'</div>';
+  if(budget>0){
+    html+='<div class="lbbar"><div class="lbbar-fill'+(over?' over':'')+'" style="width:'+pct+'%"></div></div>'
+      +'<div class="fig-caption" style="margin-top:6px">'+(over
+        ?'<span class="amt-over">Over budget by '+fmtMoney(total-budget)+'</span>'
+        :fmtMoney(budget-total)+' left of '+fmtMoney(budget)+' this month')+'</div>';
+  }else{
+    html+='<div class="fig-caption" style="margin-top:6px">Set a baseline above to track spending against a limit. It carries forward to future months automatically until you change it.</div>';
+  }
+  ht('sp-budget-card',html);
+}
 function spRenderMonth(){
   var mk=spCurMonthKey();
   var totals=spCatTotals(mk);
   var cats=Object.keys(totals).sort(function(a,b){return totals[b]-totals[a];});
   var total=cats.reduce(function(s,c){return s+totals[c];},0);
-  var budget=gn('living-budget');
-  var over=budget>0&&total>budget;
-  var pct=budget>0?Math.min(100,Math.round(total/budget*100)):0;
-  var hero='<div class="scl">Total spent — '+MN[new Date().getMonth()]+'</div><div class="fig-hero num'+(over?' amt-over':'')+'">'+fmtMoney(total)+'</div>';
-  if(budget>0){
-    hero+='<div class="lbbar"><div class="lbbar-fill'+(over?' over':'')+'" style="width:'+pct+'%"></div></div>'
-      +'<div class="fig-caption" style="margin-top:6px">'+(over
-        ?'<span class="amt-over">Over budget by '+fmtMoney(total-budget)+'</span>'
-        :fmtMoney(budget-total)+' left of '+fmtMoney(budget)+' living expense budget')+'</div>';
-  }else{
-    hero+='<div class="fig-caption" style="margin-top:6px">Set a living expense budget in Budget → Income to track spending against a limit.</div>';
-  }
-  ht('sp-month-hero',hero);
-  ht('sp-month-stats',sc('Categories',cats.length,'with spending','sc-nt','scv-nt')
-    +sc('Living budget',budget>0?fmtMoney(budget):'—','set in Income','sc-yw','scv-yw'));
+  ht('sp-month-stats',sc('Total this month',fmtMoney(total),MN[new Date().getMonth()],'sc-nt','scv-nt')
+    +sc('Categories',cats.length,'with spending','sc-nt','scv-nt'));
   var rows=cats.map(function(c){
     var actual=totals[c];var share=total>0?(actual/total*100):0;
     return '<tr><td>'+esc(c)+'</td><td class="num fig-secondary">'+fmtMoney(actual)+'</td><td class="num fig-secondary" style="color:var(--dm)">'+share.toFixed(0)+'%</td></tr>';
@@ -779,7 +806,7 @@ function spRenderHistory(){
 }
 function spInit(){
   if(!el('sp-date').value)el('sp-date').value=todayStr();
-  spRenderChips();spRenderRecent();spSetView(spActiveView);
+  spRenderChips();spRenderRecent();spRenderBudgetCard();spSetView(spActiveView);
 }
 
 // TRACKER
@@ -1284,10 +1311,15 @@ function dlExp(){
   setTimeout(function(){URL.revokeObjectURL(url);},1000);
 }
 function openImp(){el('imp-tx').value='';el('imp-file').value='';el('m-imp').classList.add('on');}
+function openSettings(){el('m-settings').classList.add('on');}
 function impFileChosen(inp){
   var f=inp.files&&inp.files[0];if(!f)return;
   var reader=new FileReader();
-  reader.onload=function(e){el('imp-tx').value=e.target.result;};
+  reader.onload=function(e){
+    el('imp-tx').value=e.target.result;
+    el('m-imp').classList.add('on');
+    if(confirm('Restore data from this backup? This overwrites everything currently on this device.'))doImp();
+  };
   reader.readAsText(f);
 }
 function doImp(){
@@ -1350,7 +1382,12 @@ document.querySelectorAll('.btabs').forEach(function(g){
 });
 document.querySelectorAll('.mov').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('on');});});
 el('main-salary').addEventListener('input',recalcBudget);
-el('living-budget').addEventListener('input',function(){saveAll();spRenderActiveView();});
+el('tab-spending').addEventListener('change',function(e){
+  if(e.target&&e.target.id==='living-budget'){
+    spSetBudget(spCurMonthKey(),parseFloat(e.target.value)||0);
+    spRenderBudgetCard();spRenderActiveView();
+  }
+});
 
 // ── INIT ──
 loadTheme();
