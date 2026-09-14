@@ -167,6 +167,11 @@ label.lbl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing
 .proj-input-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .proj-input-row>div{display:flex;flex-direction:column}
 select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius:6px;color:var(--tx);font-size:13px;padding:6px 10px;font-family:inherit;outline:none;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--br);color:var(--mu);white-space:nowrap;user-select:none}
+.chip.on{background:var(--gr-bg);border-color:var(--gr-br);color:var(--gr-tx);font-weight:600}
+.chip .sp-chip-del{color:var(--rd-tx);font-weight:700;font-size:10px}
+.chip-add{display:inline-flex;align-items:center;gap:4px}
+.chip-add input{font-size:11px;padding:4px 10px;border-radius:14px;border:1px dashed var(--br);background:var(--inp-bg);color:var(--tx);width:120px;font-family:inherit;outline:none}
 [data-theme="light"] .appname>svg:first-of-type{outline:2px solid #1c1e22;border-radius:6px}
 [data-theme="light"] .appname svg:nth-of-type(2) text{fill:#1c1e22}
 [data-theme="light"] .appname svg:nth-of-type(2) polyline{stroke:#1c1e22}
@@ -215,6 +220,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 
 <div class="tabs" id="mt">
   <button class="tab on" data-t="budget">&#127968; Budget</button>
+  <button class="tab" data-t="spending">Spending</button>
   <button class="tab" data-t="tracker">Tracker</button>
   <button class="tab" data-t="projection">Projection</button>
   <button class="tab" data-t="watchlist">Watchlist</button>
@@ -249,6 +255,55 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     <div class="sg" id="bkd-stats"></div>
     <div class="card"><div class="ct">Monthly breakdown</div><div id="budget-bars"></div></div>
     <div class="card"><div class="ct">Allocation</div><div class="cw" style="height:210px"><canvas id="chart-pie"></canvas></div></div>
+  </div>
+</div>
+
+<!-- SPENDING -->
+<div class="panel" id="tab-spending">
+  <div class="card" id="sp-quickadd">
+    <div class="ct">Add spending</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+      <div>
+        <label class="lbl">Amount</label>
+        <input class="rinp" type="number" inputmode="decimal" id="sp-amt" placeholder="0.00" step="0.01" min="0" style="width:110px" onkeydown="if(event.key==='Enter'){event.preventDefault();spAddEntry();}">
+      </div>
+      <div>
+        <label class="lbl">Date</label>
+        <input class="rinp" type="date" id="sp-date" style="width:150px">
+      </div>
+      <div style="flex:1;min-width:150px">
+        <label class="lbl">Note (optional)</label>
+        <input class="finp" type="text" id="sp-note" placeholder="Note">
+      </div>
+      <button class="bprim" onclick="spAddEntry()">Add</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <label class="lbl" style="margin-bottom:0">Category</label>
+      <button type="button" class="btn" style="font-size:10px;padding:3px 8px" onclick="spToggleCatEdit()" id="sp-cat-edit-btn">Edit categories</button>
+    </div>
+    <div id="sp-cat-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+  <div id="sp-recur-banner"></div>
+  <div class="card">
+    <div class="ct">Recent entries</div>
+    <div id="sp-recent-list"></div>
+  </div>
+  <div class="btabs" id="sp-views">
+    <button class="btab on" data-sv="month">This month</button>
+    <button class="btab" data-sv="unbudgeted">Unbudgeted</button>
+    <button class="btab" data-sv="history">History</button>
+  </div>
+  <div class="bpn on" id="sp-pn-month">
+    <div class="sg" id="sp-month-stats"></div>
+    <div class="card"><div class="ct">By category vs budget</div>
+      <div class="tw"><table><thead><tr><th>Category</th><th style="text-align:right">Planned</th><th style="text-align:right">Actual</th><th style="text-align:right">Variance</th></tr></thead><tbody id="sp-month-tbl"></tbody></table></div>
+    </div>
+  </div>
+  <div class="bpn" id="sp-pn-unbudgeted">
+    <div id="sp-unbudgeted-list"></div>
+  </div>
+  <div class="bpn" id="sp-pn-history">
+    <div class="card"><div class="ct">Month-by-month spending</div><div class="tw" id="sp-history-tbl"></div></div>
   </div>
 </div>
 
@@ -339,6 +394,7 @@ var SK='vault11';
 var WL_SK='vault-wl';
 var TR_SK='vault-tr';
 var PROJ_SK='vault-proj';
+var EXP_SK='vault-exp';
 var THEME_SK='vault-theme';
 var CHART_COLORS=['#8ab4f8','#6dbf67','#f9c84a','#f28b82','#c792ea','#89ddff','#ffcb6b','#ff5572'];
 var CH={};
@@ -346,6 +402,11 @@ var MN=['January','February','March','April','May','June','July','August','Septe
 var wlData=[];
 var trData={};
 var projData={};
+var expDefaultCats=['Groceries','Eating out','Fuel','Games','Date night','Gifts','Other'];
+var expData={v:1,entries:[],cats:expDefaultCats.slice(),dismissed:[]};
+var spSelectedCat='';
+var spCatEditMode=false;
+var spActiveView='month';
 var budgetLists={income:[],expenses:[],savings:[]};
 var baseCurrency='BHD';
 var CUR={BHD:{code:'BHD',sym:'BD',dp:3},USD:{code:'USD',sym:'$',dp:2},
@@ -428,9 +489,11 @@ function saveAll(){
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
+    localStorage.setItem(EXP_SK,JSON.stringify(expData));
   }catch(e){}
   flash();
 }
+function normExp(d){return(d&&d.v===1)?{v:1,entries:d.entries||[],cats:(d.cats&&d.cats.length)?d.cats:expDefaultCats.slice(),dismissed:d.dismissed||[]}:{v:1,entries:[],cats:expDefaultCats.slice(),dismissed:[]};}
 function loadAll(){
   try{
     var r=localStorage.getItem(SK);
@@ -438,6 +501,7 @@ function loadAll(){
     var wr=localStorage.getItem(WL_SK);if(wr)wlData=JSON.parse(wr);
     var tr=localStorage.getItem(TR_SK);if(tr)trData=JSON.parse(tr);
     var pr=localStorage.getItem(PROJ_SK);if(pr)projData=JSON.parse(pr);
+    var er=localStorage.getItem(EXP_SK);if(er)expData=normExp(JSON.parse(er));
     renderCurControls();
   }catch(e){}
 }
@@ -536,6 +600,184 @@ function recalcBudget(){
 }
 
 // ── TRACKER ──
+// SPENDING
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function spMonthKey(d){return (d||'').slice(0,7);}
+function spCurMonthKey(){return todayStr().slice(0,7);}
+function spCatTotals(monthKey){
+  var totals={};
+  expData.entries.forEach(function(e){if(spMonthKey(e.date)===monthKey)totals[e.cat]=(totals[e.cat]||0)+e.amt;});
+  return totals;
+}
+function spBudgetLineFor(cat){
+  return budgetLists.expenses.find(function(b){return (b.name||'').trim().toLowerCase()===cat.trim().toLowerCase();});
+}
+function spOrderedCats(){
+  var used=[];
+  expData.entries.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(e){
+    if(used.indexOf(e.cat)===-1)used.push(e.cat);
+  });
+  used=used.filter(function(c){return expData.cats.indexOf(c)!==-1;});
+  var rest=expData.cats.filter(function(c){return used.indexOf(c)===-1;});
+  return used.concat(rest);
+}
+function spToggleCatEdit(){
+  spCatEditMode=!spCatEditMode;
+  el('sp-cat-edit-btn').textContent=spCatEditMode?'Done':'Edit categories';
+  spRenderChips();
+}
+function spRenderChips(){
+  var ordered=spOrderedCats();
+  if(!spSelectedCat||expData.cats.indexOf(spSelectedCat)===-1)spSelectedCat=ordered[0]||expData.cats[0]||'';
+  var html=ordered.map(function(c){
+    var on=c===spSelectedCat;
+    return '<span class="chip sp-chip'+(on?' on':'')+'" data-cat="'+esc(c)+'" tabindex="0" role="button">'+esc(c)
+      +(spCatEditMode?'<b class="sp-chip-del" data-cat="'+esc(c)+'" title="Remove category">&#x2715;</b>':'')+'</span>';
+  }).join('');
+  if(spCatEditMode){
+    html+='<span class="chip-add"><input type="text" id="sp-new-cat" placeholder="New category" onkeydown="if(event.key===\'Enter\'){event.preventDefault();spAddCat();}"><button type="button" class="btn" style="font-size:11px;padding:4px 10px" onclick="spAddCat()">+ Add</button></span>';
+  }
+  ht('sp-cat-chips',html);
+}
+function spAddCat(){
+  var inp=el('sp-new-cat');if(!inp)return;
+  var name=inp.value.trim();if(!name)return;
+  if(!expData.cats.find(function(c){return c.toLowerCase()===name.toLowerCase();}))expData.cats.push(name);
+  spSelectedCat=name;inp.value='';
+  saveAll();spRenderChips();
+}
+function spRemoveCat(cat){
+  var i=expData.cats.indexOf(cat);if(i!==-1)expData.cats.splice(i,1);
+  saveAll();spRenderChips();
+}
+function spAddEntry(){
+  var amtInp=el('sp-amt');var amt=parseFloat(amtInp.value);
+  if(!amt||amt<=0){amtInp.focus();return;}
+  var date=el('sp-date').value||todayStr();
+  var cat=spSelectedCat||expData.cats[0]||'Other';
+  var note=el('sp-note').value.trim();
+  expData.entries.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),date:date,cat:cat,amt:parseFloat(amt.toFixed(2)),note:note,recurring:false});
+  saveAll();
+  amtInp.value='';el('sp-note').value='';amtInp.focus();
+  spRenderChips();spRenderRecent();spRenderActiveView();spCheckRecurrence();
+}
+function spDeleteEntry(id){
+  var i=expData.entries.findIndex(function(e){return e.id===id;});
+  if(i!==-1)expData.entries.splice(i,1);
+  saveAll();
+  spRenderChips();spRenderRecent();spRenderActiveView();spCheckRecurrence();
+}
+function spRenderRecent(){
+  var recent=expData.entries.slice().sort(function(a,b){return b.date.localeCompare(a.date)||(''+b.id).localeCompare(''+a.id);}).slice(0,8);
+  var html=recent.map(function(e){
+    return '<div class="rr"><div><div style="font-weight:600">'+esc(e.cat)+' <span style="color:var(--mu);font-weight:400">'+fmtMoney(e.amt)+'</span></div>'
+      +'<div class="rnt">'+esc(e.date)+(e.note?' &middot; '+esc(e.note):'')+'</div></div>'
+      +'<button class="xb" data-sp-del data-id="'+esc(e.id)+'" title="Delete">&#x2715;</button></div>';
+  }).join('');
+  ht('sp-recent-list',html||'<div style="color:var(--dm);font-size:12px;padding:6px 0">No entries yet — add your first above.</div>');
+}
+function spAddCatToBudget(cat,amt){
+  if(!spBudgetLineFor(cat))budgetLists.expenses.push({name:cat,amt:parseFloat((amt||0).toFixed(2))});
+  if(expData.dismissed.indexOf(cat)===-1)expData.dismissed.push(cat);
+  renderL('expenses');
+  recalcBudget();
+  saveAll();
+  spRenderActiveView();spCheckRecurrence();
+}
+function spDismiss(cat){
+  if(expData.dismissed.indexOf(cat)===-1)expData.dismissed.push(cat);
+  saveAll();spCheckRecurrence();
+}
+function spSetView(v){
+  spActiveView=v;
+  document.querySelectorAll('#sp-views .btab').forEach(function(b){b.classList.toggle('on',b.dataset.sv===v);});
+  document.querySelectorAll('#tab-spending .bpn').forEach(function(p){p.classList.remove('on');});
+  el('sp-pn-'+v).classList.add('on');
+  spRenderActiveView();
+}
+function spRenderActiveView(){
+  if(spActiveView==='month')spRenderMonth();
+  else if(spActiveView==='unbudgeted')spRenderUnbudgeted();
+  else if(spActiveView==='history')spRenderHistory();
+}
+function spRenderMonth(){
+  var mk=spCurMonthKey();
+  var totals=spCatTotals(mk);
+  var cats=Object.keys(totals).sort(function(a,b){return totals[b]-totals[a];});
+  var total=cats.reduce(function(s,c){return s+totals[c];},0);
+  var unbud=cats.filter(function(c){return !spBudgetLineFor(c);}).length;
+  ht('sp-month-stats',sc('Total spent',fmtMoney(total),MN[new Date().getMonth()],'sc-rd','scv-rd')
+    +sc('Categories',cats.length,'with spending','sc-nt','scv-nt')
+    +sc('Unbudgeted',unbud,unbud===1?'category':'categories','sc-yw','scv-yw'));
+  var rows=cats.map(function(c){
+    var actual=totals[c];var line=spBudgetLineFor(c);var planned=line?line.amt:null;var varCell;
+    if(planned!=null){
+      var v=actual-planned;var over=v>0;
+      varCell='<td style="text-align:right;color:'+(over?'var(--rd-v)':'var(--gr-v)')+';font-weight:600">'+(over?'+':'')+fmtMoney(v)+'</td>';
+    }else{
+      varCell='<td style="text-align:right"><span class="mtag tdef">Unbudgeted</span></td>';
+    }
+    return '<tr><td>'+esc(c)+'</td><td style="text-align:right">'+(planned!=null?fmtMoney(planned):'—')+'</td><td style="text-align:right">'+fmtMoney(actual)+'</td>'+varCell+'</tr>';
+  }).join('');
+  ht('sp-month-tbl',rows||'<tr><td colspan="4" style="color:var(--dm);text-align:center">No spending recorded this month yet.</td></tr>');
+}
+function spRenderUnbudgeted(){
+  var mk=spCurMonthKey();
+  var totals=spCatTotals(mk);
+  var cats=Object.keys(totals).filter(function(c){return !spBudgetLineFor(c);}).sort(function(a,b){return totals[b]-totals[a];});
+  if(!cats.length){ht('sp-unbudgeted-list','<div style="padding:24px;text-align:center;color:var(--dm);font-size:13px;border:1px dashed var(--br);border-radius:10px">No unbudgeted spending this month.</div>');return;}
+  var html=cats.map(function(c){
+    return '<div class="rr"><div><div style="font-weight:600">'+esc(c)+'</div><div class="rnt">'+fmtMoney(totals[c])+' this month, not in your budget</div></div>'
+      +'<button class="btn" data-sp-add-budget data-cat="'+esc(c)+'" data-amt="'+totals[c].toFixed(2)+'">+ Add to budget</button></div>';
+  }).join('');
+  ht('sp-unbudgeted-list',html);
+}
+function spRenderHistory(){
+  var monthsSet={};
+  expData.entries.forEach(function(e){monthsSet[spMonthKey(e.date)]=true;});
+  var months=Object.keys(monthsSet).sort();
+  var last=months.slice(-6);
+  if(!last.length)last=[spCurMonthKey()];
+  var totalsByMonth={};last.forEach(function(mk){totalsByMonth[mk]=spCatTotals(mk);});
+  var catsSet={};last.forEach(function(mk){Object.keys(totalsByMonth[mk]).forEach(function(c){catsSet[c]=true;});});
+  var cats=Object.keys(catsSet).sort();
+  if(!cats.length){ht('sp-history-tbl','<div style="padding:24px;text-align:center;color:var(--dm);font-size:13px">No spending history yet.</div>');return;}
+  var maxVal=0;
+  cats.forEach(function(c){last.forEach(function(mk){maxVal=Math.max(maxVal,totalsByMonth[mk][c]||0);});});
+  var head='<tr><th>Category</th>'+last.map(function(mk){var p=mk.split('-');return '<th>'+MN[parseInt(p[1])-1].slice(0,3)+' '+p[0].slice(2)+'</th>';}).join('')+'</tr>';
+  var rows=cats.map(function(c){
+    var cells=last.map(function(mk){
+      var v=totalsByMonth[mk][c]||0;var w=maxVal>0?Math.round(v/maxVal*100):0;
+      return '<td><div style="display:flex;align-items:center;gap:6px"><div class="bt" style="width:36px"><div class="bf" style="width:'+w+'%;background:var(--bl-v)"></div></div><span style="font-size:11px">'+(v?fmtMoney(v,{dp:0}):'—')+'</span></div></td>';
+    }).join('');
+    return '<tr><td>'+esc(c)+'</td>'+cells+'</tr>';
+  }).join('');
+  ht('sp-history-tbl','<table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>');
+}
+function spCheckRecurrence(){
+  var banner=el('sp-recur-banner');if(!banner)return;
+  var now=new Date();var months=[];
+  for(var i=0;i<3;i++){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
+  var totalsByMonth=months.map(spCatTotals);
+  var allCats={};expData.entries.forEach(function(e){allCats[e.cat]=true;});
+  var candidates=Object.keys(allCats).filter(function(c){
+    return totalsByMonth.every(function(t){return(t[c]||0)>0;})&&!spBudgetLineFor(c)&&expData.dismissed.indexOf(c)===-1;
+  });
+  ht('sp-recur-banner',candidates.map(function(c){
+    return '<div class="note" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--yw-br);background:var(--yw-bg);color:var(--yw-tx)">'
+      +'<span>'+esc(c)+' has appeared three months running and isn’t in your budget. Add it?</span>'
+      +'<span style="display:flex;gap:6px;flex-shrink:0">'
+        +'<button class="btn" data-sp-add-budget data-cat="'+esc(c)+'" data-amt="'+(totalsByMonth[0][c]||0).toFixed(2)+'">Add</button>'
+        +'<button class="btn" data-sp-dismiss data-cat="'+esc(c)+'">Dismiss</button>'
+      +'</span></div>';
+  }).join(''));
+}
+function spInit(){
+  if(!el('sp-date').value)el('sp-date').value=todayStr();
+  spRenderChips();spRenderRecent();spCheckRecurrence();spRenderActiveView();
+}
+
+// TRACKER
 function trStockItems(){return wlData.filter(function(w){return w.track;});}
 function trRefreshDropdown(){
   var sel=el('tr-stock-sel');if(!sel)return;
@@ -1014,7 +1256,7 @@ function openExp(){
   el('exp-tx').value=JSON.stringify({
     vault:'vault-backup',v:12,
     budget:JSON.parse(localStorage.getItem(SK)||'null'),
-    wl:wlData,tr:trData,proj:projData,
+    wl:wlData,tr:trData,proj:projData,exp:expData,
     theme:localStorage.getItem(THEME_SK)||'dark'
   });
   el('m-exp').classList.add('on');
@@ -1025,7 +1267,7 @@ function dlExp(){
   var data={
     vault:'vault-backup',v:12,
     budget:JSON.parse(localStorage.getItem(SK)||'null'),
-    wl:wlData,tr:trData,proj:projData,
+    wl:wlData,tr:trData,proj:projData,exp:expData,
     theme:localStorage.getItem(THEME_SK)||'dark'
   };
   var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
@@ -1048,25 +1290,26 @@ function doImp(){
     var p=JSON.parse(el('imp-tx').value.trim()),budget=null,legacy=false;
     if(p.vault==='vault-backup'){
       budget=p.budget;
-      wlData=p.wl||[];trData=p.tr||{};projData=p.proj||{};
+      wlData=p.wl||[];trData=p.tr||{};projData=p.proj||{};expData=normExp(p.exp);
       if(p.theme)localStorage.setItem(THEME_SK,p.theme);
     }else if(p.v===11){
-      budget=p;wlData=[];trData={};projData={};legacy=true;
+      budget=p;wlData=[];trData={};projData={};expData=normExp(null);legacy=true;
     }else throw new Error('unrecognised');
     if(!budget)throw new Error('no budget data');
     localStorage.setItem(SK,JSON.stringify(budget));
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
+    localStorage.setItem(EXP_SK,JSON.stringify(expData));
     budgetLists={income:[],expenses:[],savings:[]};
     loadAll();loadTheme();
     ['income','expenses','savings'].forEach(renderL);
-    wlRender();trRefreshDropdown();projRefreshDropdown();recalcBudget();
+    wlRender();trRefreshDropdown();projRefreshDropdown();recalcBudget();spInit();
     closeM('m-imp');
     if(legacy)alert('Imported an older export — budget only. Watchlist and tracker data were not in that file.');
   }catch(e){alert('Import failed. Paste the complete exported text from another Vault instance.');}
 }
-function doReset(){if(confirm('Reset all data? This cannot be undone.')){[SK,WL_SK,TR_SK,PROJ_SK].forEach(function(k){localStorage.removeItem(k);});location.reload();}}
+function doReset(){if(confirm('Reset all data? This cannot be undone.')){[SK,WL_SK,TR_SK,PROJ_SK,EXP_SK].forEach(function(k){localStorage.removeItem(k);});location.reload();}}
 function closeM(id){el(id).classList.remove('on');}
 
 // ── TABS ──
@@ -1075,9 +1318,24 @@ el('mt').addEventListener('click',function(e){
   document.querySelectorAll('#mt .tab').forEach(function(b){b.classList.remove('on');});
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   btn.classList.add('on');el('tab-'+btn.dataset.t).classList.add('on');
+  if(btn.dataset.t==='spending'){spInit();}
   if(btn.dataset.t==='tracker'){trRefreshDropdown();}
   if(btn.dataset.t==='projection'){projRefreshDropdown();renderFXBar();}
   if(btn.dataset.t==='watchlist'){wlInit();}
+});
+el('sp-views').addEventListener('click',function(e){
+  var btn=e.target.closest('.btab');if(!btn||!btn.dataset.sv)return;
+  spSetView(btn.dataset.sv);
+});
+el('tab-spending').addEventListener('click',function(e){
+  var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
+  var chip=e.target.closest('.sp-chip');if(chip){spSelectedCat=chip.dataset.cat;spRenderChips();return;}
+  var addBtn=e.target.closest('[data-sp-add-budget]');if(addBtn){spAddCatToBudget(addBtn.dataset.cat,parseFloat(addBtn.dataset.amt)||0);return;}
+  var dismissBtn=e.target.closest('[data-sp-dismiss]');if(dismissBtn){spDismiss(dismissBtn.dataset.cat);return;}
+  var delEntry=e.target.closest('[data-sp-del]');if(delEntry){spDeleteEntry(delEntry.dataset.id);return;}
+});
+el('tab-spending').addEventListener('keydown',function(e){
+  if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('sp-chip')){e.preventDefault();e.target.click();}
 });
 document.querySelectorAll('.btabs').forEach(function(g){
   g.addEventListener('click',function(e){
