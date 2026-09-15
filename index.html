@@ -215,11 +215,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 [data-theme="light"] .appname svg:nth-of-type(2) line{stroke:#1c1e22}
 [data-theme="light"] .appname svg:nth-of-type(2) polygon{fill:#1c1e22}
 @media(max-width:400px){
-  .mr{row-gap:4px}
-  .mn{width:auto}
-  .mcum{width:100%;text-align:left;order:10}
-  .mai input{width:88px}
-  .mcv{width:auto}
+  .mr{grid-template-columns:minmax(0,1fr) auto 88px 86px;column-gap:6px}
 }
 .btn:focus-visible,.btn-rd:focus-visible,.xb:focus-visible,.ab:focus-visible,.xcl:focus-visible,
 .tgl-btn:focus-visible,.view-btn:focus-visible,.bprim:focus-visible,.bsec:focus-visible,
@@ -268,15 +264,20 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
 }
 
 @media(max-width:560px){
-  .mr{flex-wrap:wrap;row-gap:6px;padding:10px 0}
-  .mn{width:auto;flex:1 1 auto;font-weight:600}
-  .mai{order:2}
-  .mai input{width:104px}
-  .mcl{order:3;width:auto}
-  .mtag,.tdef{order:4}
-  .xcl{order:5}
-  .mcv{order:10;flex:1 0 100%;width:auto;text-align:left}
-  .mcum{order:11;flex:1 0 100%;text-align:left}
+  .mr{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto 104px 92px;
+    grid-template-areas:"name name input clear" "tag cur conv cum";
+    align-items:center;column-gap:8px;row-gap:5px;padding:11px 0;
+  }
+  .mn{grid-area:name;width:auto;font-weight:600;font-size:13px}
+  .mai{grid-area:input}
+  .mai input{width:100%}
+  .xcl{grid-area:clear;justify-self:end}
+  .mcl{grid-area:cur;width:auto;text-align:left;font-size:10.5px}
+  .mtag,.tdef{grid-area:tag;justify-self:start}
+  .mcv{grid-area:conv;width:auto;text-align:left;font-size:10px}
+  .mcum{grid-area:cum;width:auto;flex:none;justify-self:end;text-align:right;font-size:10.5px}
   .bn{width:86px;font-size:10.5px}
   .bv{width:auto;min-width:46px}
   .wl-meta{grid-template-columns:1fr 1fr;row-gap:10px}
@@ -284,6 +285,17 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   #sp-quickadd .sp-add-row>div{flex:1 1 140px;min-width:0}
   #sp-quickadd .sp-add-row .rinp,#sp-quickadd .sp-add-row .finp{width:100%}
   #sp-quickadd .sp-add-row .bprim{flex:1 0 100%}
+
+  .tw:has(table.stack){overflow-x:visible;max-height:none}
+  table.stack{font-size:13px}
+  table.stack thead{display:none}
+  table.stack tr{display:block;padding:11px 0;border-bottom:1px solid var(--br)}
+  table.stack tr:last-child{border-bottom:none}
+  table.stack tr:nth-child(even) td{background:transparent}
+  table.stack td{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:3px 0;border:none;white-space:normal;text-align:right}
+  table.stack td::before{content:attr(data-label);color:var(--mu);font-size:11px;font-weight:500;text-align:left;flex:0 0 auto}
+  table.stack td:first-child{justify-content:flex-start;font-weight:700;font-size:14px;padding:0 0 6px}
+  table.stack td:first-child::before{display:none}
 }
 </style>
 </head>
@@ -1128,7 +1140,7 @@ function renderProjStock(){
     +'<div class="cw" style="height:200px"><canvas id="chart-proj-stock"></canvas></div>'
     +'</div>'
     +'<div class="card"><div class="ct">Projection table &mdash; '+item.sym+' ('+horizYrs+'yr at '+rate+'%)</div>'
-    +'<div class="tw"><table><thead><tr><th>Year</th><th class="num">Years in</th><th class="num">Contributed</th><th class="num">Projected value</th><th class="num">Total growth</th></tr></thead>'
+    +'<div class="tw"><table class="stack"><thead><tr><th>Year</th><th class="num">Years in</th><th class="num">Contributed</th><th class="num">Projected value</th><th class="num">Total growth</th></tr></thead>'
     +'<tbody id="proj-stock-tbl"></tbody></table></div></div>';
   ht('proj-stock-view',html);
   projRenderStockChart(item,horizYrs,monthly,rate,displayCur);
@@ -1147,7 +1159,7 @@ function projRenderStockChart(item,horizYrs,monthly,rate,displayCur){
     scales:{x:{ticks:tc(),grid:{color:gc()}},y:{ticks:Object.assign({},tc(),{callback:function(v){return v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1000)+'K';}}),grid:{color:gc()}}}}});
 }
 function projRenderStockTable(pd,horizYrs,monthly,rate,displayCur){
-  if(!monthly||!rate){ht('proj-stock-tbl','<tr><td colspan="5" style="color:var(--dm);font-size:12px;text-align:center">Enter a monthly amount and return rate to see projections.</td></tr>');return;}
+  if(!monthly||!rate){ht('proj-stock-tbl','<tr><td colspan="5" style="color:var(--dm);font-size:12px;text-align:center;display:block">Enter a monthly amount and return rate to see projections.</td></tr>');return;}
   var years=[];
   if(pd.viewMode==='yearly'){for(var y=1;y<=horizYrs;y++)years.push(y);}
   else{for(var y=5;y<=horizYrs;y+=5)years.push(y);if(years.length===0||years[years.length-1]!==horizYrs)years.push(horizYrs);}
@@ -1158,10 +1170,10 @@ function projRenderStockTable(pd,horizYrs,monthly,rate,displayCur){
     var growth=contrib>0?((proj/contrib-1)*100):0;
     var dispProj=displayCur===baseCurrency?proj:fromBase(proj,displayCur);
     var dispContrib=displayCur===baseCurrency?contrib:fromBase(contrib,displayCur);
-    rows+='<tr><td style="font-weight:600">'+(now+y)+'</td><td class="num fig-secondary">'+y+' yr'+(y>1?'s':'')+'</td>'
-      +'<td class="num fig-secondary">'+fmtMoney(dispContrib,{cur:displayCur})+'</td>'
-      +'<td class="num fig-secondary" style="color:var(--gr-v)">'+fmtMoney(dispProj,{cur:displayCur})+'</td>'
-      +'<td class="num fig-secondary" style="color:var(--gr-v)">+'+growth.toFixed(1)+'%</td></tr>';
+    rows+='<tr><td style="font-weight:600">'+(now+y)+'</td><td class="num fig-secondary" data-label="Years in">'+y+' yr'+(y>1?'s':'')+'</td>'
+      +'<td class="num fig-secondary" data-label="Contributed">'+fmtMoney(dispContrib,{cur:displayCur})+'</td>'
+      +'<td class="num fig-secondary" data-label="Projected value" style="color:var(--gr-v)">'+fmtMoney(dispProj,{cur:displayCur})+'</td>'
+      +'<td class="num fig-secondary" data-label="Total growth" style="color:var(--gr-v)">+'+growth.toFixed(1)+'%</td></tr>';
   });
   ht('proj-stock-tbl',rows);
 }
@@ -1213,11 +1225,11 @@ function renderProjOverview(){
     YEARS.forEach(function(y,yi){var v=Math.round(fv(rate/100,y,monthly));rowVals.push(v);combined[yi]+=v;});
     datasets.push({label:item.sym,data:pts,borderColor:color,borderWidth:2,pointRadius:0,fill:false,tension:0.3});
     tableRows+='<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+color+';margin-right:5px"></span>'+esc(item.sym)+'</td>'
-      +'<td class="num fig-secondary" style="color:var(--mu)">'+fmtMoney(monthly)+'</td>'
-      +rowVals.map(function(v){return '<td class="num fig-secondary" style="color:var(--gr-v)">'+fmtMoney(v)+'</td>';}).join('')+'</tr>';
+      +'<td class="num fig-secondary" data-label="Monthly" style="color:var(--mu)">'+fmtMoney(monthly)+'</td>'
+      +rowVals.map(function(v,vi){return '<td class="num fig-secondary" data-label="'+YEARS[vi]+'yr" style="color:var(--gr-v)">'+fmtMoney(v)+'</td>';}).join('')+'</tr>';
   });
-  tableRows+='<tr style="border-top:1px solid var(--br)"><td style="font-weight:600">Combined</td><td class="num fig-secondary" style="font-weight:500;color:var(--mu)">'+fmtMoney(totalMonthly)+'</td>'
-    +combined.map(function(v){return '<td class="num fig-secondary" style="color:var(--bl-v);font-weight:600">'+fmtMoney(v)+'</td>';}).join('')+'</tr>';
+  tableRows+='<tr style="border-top:1px solid var(--br)"><td style="font-weight:600">Combined</td><td class="num fig-secondary" data-label="Monthly" style="font-weight:500;color:var(--mu)">'+fmtMoney(totalMonthly)+'</td>'
+    +combined.map(function(v,vi){return '<td class="num fig-secondary" data-label="'+YEARS[vi]+'yr" style="color:var(--bl-v);font-weight:600">'+fmtMoney(v)+'</td>';}).join('')+'</tr>';
   var labels=[];for(var i=1;i<=60;i++)labels.push(i===12?'1yr':i===36?'3yr':i===60?'5yr':'');
   var leg=stocks.map(function(item,ci){return '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu)"><span style="width:10px;height:3px;background:'+CHART_COLORS[ci%CHART_COLORS.length]+';border-radius:2px;display:inline-block"></span>'+item.sym+'</div>';}).join('');
   var html='<div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px;padding-top:4px">All Projections \u2014 5 year overview</div>'
@@ -1231,7 +1243,7 @@ function renderProjOverview(){
       +'<div class="cw"><canvas id="chart-proj-overview"></canvas></div>'
     +'</div>'
     +'<div class="card"><div class="ct">Projected values at 1yr, 3yr, 5yr</div>'
-      +'<div class="tw"><table><thead><tr><th>Stock</th><th class="num">Monthly</th><th class="num">1yr</th><th class="num">3yr</th><th class="num">5yr</th></tr></thead><tbody>'+tableRows+'</tbody></table></div></div>';
+      +'<div class="tw"><table class="stack"><thead><tr><th>Stock</th><th class="num">Monthly</th><th class="num">1yr</th><th class="num">3yr</th><th class="num">5yr</th></tr></thead><tbody>'+tableRows+'</tbody></table></div></div>';
   ht('proj-overview',html);
   mkC('chart-proj-overview',{type:'line',data:{labels:labels,datasets:datasets},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:dk?'#252729':'#fff',borderColor:dk?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:dk?'#dbdee1':'#1c1e22',callbacks:{label:function(c){return c.dataset.label+': '+fmtMoney(c.raw);}}}},
@@ -1291,13 +1303,20 @@ async function wlFetch(idx){
   if(['LSE','XLON','CBOE','BCXE'].indexOf(item.exchange)>=0)ticker=item.sym.includes('.')?item.sym:(item.sym+'.L');
   var cacheBust=Date.now();
   var yahooUrl='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+'?interval=1d&range=5d&_='+cacheBust;
-  var proxies=[{url:'https://corsproxy.io/?url='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:true},{url:'https://api.allorigins.win/get?url='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:false}];
+  var proxies=[
+    {url:'https://corsproxy.io/?url='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:true},
+    {url:'https://api.allorigins.win/raw?url='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:true},
+    {url:'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:true},
+    {url:'https://api.allorigins.win/get?url='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:false}
+  ];
   function fetchT(u,ms){return Promise.race([fetch(u,{cache:'no-store'}),new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},ms);})]);}
+  var lastErr='';
   for(var pi=0;pi<proxies.length;pi++){
     try{
-      var r=await fetchT(proxies[pi].url,9000);if(!r.ok)continue;
+      var r=await fetchT(proxies[pi].url,9000);
+      if(!r.ok){lastErr='HTTP '+r.status+' from proxy '+pi;console.warn('[Vault wlFetch]',lastErr,proxies[pi].url);continue;}
       var text=await r.text();var data;
-      try{if(proxies[pi].raw){data=JSON.parse(text);}else{var j=JSON.parse(text);data=JSON.parse(j.contents);}}catch(e){continue;}
+      try{if(proxies[pi].raw){data=JSON.parse(text);}else{var j=JSON.parse(text);data=JSON.parse(j.contents);}}catch(e){lastErr='Bad JSON from proxy '+pi+': '+text.slice(0,150);console.warn('[Vault wlFetch]',lastErr);continue;}
       var meta=data.chart&&data.chart.result&&data.chart.result[0]&&data.chart.result[0].meta;
       if(meta&&meta.regularMarketPrice){
         var rawPrice=meta.regularMarketPrice;var rawCur=meta.currency||item.currency;
@@ -1311,13 +1330,14 @@ async function wlFetch(idx){
         var rb=document.getElementById('wlr-'+idx);
         if(rb){rb.textContent='\u2713 Refreshed';rb.style.color='var(--gr-v)';rb.style.borderColor='var(--gr-br)';setTimeout(function(){rb.textContent='\u21BB Refresh';rb.style.color='';rb.style.borderColor='';},2500);}
         return;
-      }
-    }catch(e){}
+      }else{lastErr='No price in response from proxy '+pi+' for ticker '+ticker;console.warn('[Vault wlFetch]',lastErr,data.chart&&data.chart.error);}
+    }catch(e){lastErr='Proxy '+pi+' threw: '+e.message;console.warn('[Vault wlFetch]',lastErr);}
   }
-  item.lastUpdated='Price unavailable \u2014 hit Refresh during market hours';
+  console.error('[Vault wlFetch] all proxies failed for '+ticker+'. Last error:',lastErr);
+  item.lastUpdated='Price unavailable \u2014 check browser console for details, or hit Refresh again';
   wlSave();wlRender();
   var rb2=document.getElementById('wlr-'+idx);
-  if(rb2){rb2.textContent='\u2715 Failed';rb2.style.color='var(--rd-v)';rb2.style.borderColor='var(--rd-br)';setTimeout(function(){rb2.textContent='\u21BB Refresh';rb2.style.color='';rb2.style.borderColor='';},2500);}
+  if(rb2){rb2.textContent='\u2715 Failed';rb2.style.color='var(--rd-v)';rb2.style.borderColor='var(--rd-br)';rb2.title=lastErr;setTimeout(function(){rb2.textContent='\u21BB Refresh';rb2.style.color='';rb2.style.borderColor='';},2500);}
 }
 function wlRender(){
   var list=el('wl-list');var empty=el('wl-empty');
