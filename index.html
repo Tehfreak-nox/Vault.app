@@ -134,6 +134,7 @@ td{padding:6px 9px;border-bottom:1px solid var(--br);white-space:nowrap;color:va
 tr:nth-child(even) td{background:var(--top)}
 .cw{position:relative;width:100%;height:240px;margin:8px 0}
 .home-hero{background:var(--sf);border-radius:var(--rad-c);padding:14px 16px;margin-bottom:12px;border:1px solid var(--br)}
+.home-hero .sect-sub{max-width:60ch;text-wrap:pretty}
 .home-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
 .home-ctrl label{font-size:10.5px;color:var(--mu);letter-spacing:.01em;display:block;margin-bottom:3px}
 .home-ctrl select,.home-ctrl input[type=month],.home-ctrl input[type=number]{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius:6px;color:var(--tx);font-size:13px;padding:6px 10px;font-family:inherit;outline:none;cursor:pointer}
@@ -214,7 +215,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 [data-theme="light"] .appname svg:nth-of-type(2) line{stroke:#1c1e22}
 [data-theme="light"] .appname svg:nth-of-type(2) polygon{fill:#1c1e22}
 @media(max-width:400px){
-  .mr{flex-wrap:wrap;row-gap:4px}
+  .mr{row-gap:4px}
   .mn{width:auto}
   .mcum{width:100%;text-align:left;order:10}
   .mai input{width:88px}
@@ -224,6 +225,66 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 .tgl-btn:focus-visible,.view-btn:focus-visible,.bprim:focus-visible,.bsec:focus-visible,
 .tab:focus-visible,.btab:focus-visible,.chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ── RESPONSIVE ── */
+.wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+.wl-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 0;border-top:1px solid var(--br);border-bottom:1px solid var(--br);margin-bottom:10px}
+
+@media(max-width:768px){
+  input,select,textarea{font-size:16px}
+  input.sinp-sal{font-size:26px}
+  input.sinp-living{font-size:22px}
+}
+
+@media(hover:none){
+  *{-webkit-tap-highlight-color:transparent}
+  .btn,.btn-rd,.bprim,.bsec,.tgl-btn,.view-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding-top:9px;padding-bottom:9px}
+  .xb,.xcl{width:40px;height:40px;min-width:40px;font-size:13px}
+  .tab{display:flex;align-items:center;justify-content:center;min-height:44px}
+  .btab{display:inline-flex;align-items:center;min-height:38px}
+  .chip{min-height:36px}
+  .ab{min-height:44px}
+  .tab:hover:not(.on),.xb:hover,.ab:hover{color:inherit}
+}
+
+@media(max-width:600px){
+  .wrap{padding-top:8px}
+  .topbar{padding:10px 14px}
+  .appname{font-size:16px}
+  .tabs{width:100%;flex-wrap:nowrap}
+  .tabs .tab{flex:1;padding:8px 4px;font-size:12.5px}
+  .btabs{width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .btabs::-webkit-scrollbar{display:none}
+  .btab{flex:0 0 auto}
+  .card{padding:13px 14px}
+  .cw{height:200px}
+  .cw-sm{height:210px}
+  td,th{padding:9px 10px}
+  .tw{-webkit-overflow-scrolling:touch}
+  .mov{align-items:flex-end}
+  .modal{width:100%;max-width:none;border-radius:16px 16px 0 0;max-height:88dvh;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+  .mbt{position:sticky;bottom:0;background:var(--sf);padding-top:10px;margin-bottom:-4px}
+}
+
+@media(max-width:560px){
+  .mr{flex-wrap:wrap;row-gap:6px;padding:10px 0}
+  .mn{width:auto;flex:1 1 auto;font-weight:600}
+  .mai{order:2}
+  .mai input{width:104px}
+  .mcl{order:3;width:auto}
+  .mtag,.tdef{order:4}
+  .xcl{order:5}
+  .mcv{order:10;flex:1 0 100%;width:auto;text-align:left}
+  .mcum{order:11;flex:1 0 100%;text-align:left}
+  .bn{width:86px;font-size:10.5px}
+  .bv{width:auto;min-width:46px}
+  .wl-meta{grid-template-columns:1fr 1fr;row-gap:10px}
+  #sp-quickadd .sp-add-row{gap:8px}
+  #sp-quickadd .sp-add-row>div{flex:1 1 140px;min-width:0}
+  #sp-quickadd .sp-add-row .rinp,#sp-quickadd .sp-add-row .finp{width:100%}
+  #sp-quickadd .sp-add-row .bprim{flex:1 0 100%}
+}
 </style>
 </head>
 <body>
@@ -279,16 +340,16 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
       <div class="psub">Your primary monthly income. Drives all budget calculations.</div>
       <div class="prow"><input class="sinp-sal" type="number" id="main-salary" value="0" min="0" step="50"><div><div class="punit" id="sal-unit">BHD / month</div><div class="peq fig-caption" id="sal-usd"></div></div></div>
     </div>
-    <div class="card"><div class="ct ct-gr">Additional income sources</div><div class="dlist" id="income-list"></div><button class="ab" onclick="addR('income')"><span class="add-ic">+</span> Add income source</button></div>
     <div class="sg" id="inc-stats"></div>
+    <div class="card"><div class="ct ct-gr">Additional income sources</div><div class="dlist" id="income-list"></div><button class="ab" onclick="addR('income')"><span class="add-ic">+</span> Add income source</button></div>
   </div>
   <div class="bpn" id="bp-expenses">
-    <div class="card"><div class="ct ct-rd">Monthly expenses</div><div class="dlist" id="expenses-list"></div><button class="ab" onclick="addR('expenses')"><span class="add-ic">+</span> Add expense</button></div>
     <div class="sg" id="exp-stats"></div>
+    <div class="card"><div class="ct ct-rd">Monthly expenses</div><div class="dlist" id="expenses-list"></div><button class="ab" onclick="addR('expenses')"><span class="add-ic">+</span> Add expense</button></div>
   </div>
   <div class="bpn" id="bp-savings">
-    <div class="card"><div class="ct ct-bl">Monthly savings</div><div class="dlist" id="savings-list"></div><button class="ab" onclick="addR('savings')"><span class="add-ic">+</span> Add saving or goal</button></div>
     <div class="sg" id="sav-stats"></div>
+    <div class="card"><div class="ct ct-bl">Monthly savings</div><div class="dlist" id="savings-list"></div><button class="ab" onclick="addR('savings')"><span class="add-ic">+</span> Add saving or goal</button></div>
   </div>
   <div class="bpn" id="bp-breakdown">
     <div class="sg" id="bkd-stats"></div>
@@ -302,7 +363,7 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
   <div class="scard scard-yw" id="sp-budget-card"></div>
   <div class="card" id="sp-quickadd">
     <div class="ct">Add spending</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+    <div class="sp-add-row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
       <div>
         <label class="lbl">Amount</label>
         <input class="rinp" type="number" inputmode="decimal" id="sp-amt" placeholder="0.00" step="0.01" min="0" style="width:110px" onkeydown="if(event.key==='Enter'){event.preventDefault();spAddEntry();}">
@@ -323,16 +384,16 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     </div>
     <div id="sp-cat-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
-  <div class="card">
-    <div class="ct">Recent entries</div>
-    <div id="sp-recent-list"></div>
-  </div>
   <div class="btabs" id="sp-views">
     <button class="btab on" data-sv="month">This month</button>
     <button class="btab" data-sv="history">History</button>
   </div>
   <div class="bpn on" id="sp-pn-month">
     <div class="sg" id="sp-month-stats"></div>
+    <div class="card">
+      <div class="ct">Recent entries</div>
+      <div id="sp-recent-list"></div>
+    </div>
     <div class="card"><div class="ct">By category</div>
       <div class="tw"><table><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">Share</th></tr></thead><tbody id="sp-month-tbl"></tbody></table></div>
     </div>
@@ -370,13 +431,31 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
     Enable <strong style="color:var(--bl-tx)">Track</strong> on a stock in the Watchlist tab to start tracking it here.
   </div>
   <div id="tr-content" style="display:none">
-    <div class="card"><div id="tr-months"></div><div class="note" id="tr-help"></div></div>
-    <div class="ysum" id="tr-sum"></div>
-    <div class="card" style="margin-top:10px"><div class="ct" id="tr-chart-title">Cumulative invested — solid actual, dashed projected</div><div class="cw"><canvas id="chart-tr"></canvas></div></div>
+    <div class="ysum" id="tr-sum" style="margin-top:0;margin-bottom:10px"></div>
+    <div class="card"><div class="ct">Monthly contributions</div><div id="tr-months"></div><div class="note" id="tr-help"></div></div>
+    <div class="card"><div class="ct" id="tr-chart-title">Cumulative invested — solid actual, dashed projected</div><div class="cw"><canvas id="chart-tr"></canvas></div></div>
   </div>
   </div>
   <div class="bpn" id="iv-pn-projection">
-  <div class="card" style="margin-bottom:12px">
+  <div class="home-hero">
+    <div class="sect-title">Projection</div>
+    <div class="sect-sub">Model where a monthly contribution lands over time. Enable Project on a Watchlist item first.</div>
+    <div class="home-ctrl" style="margin-top:10px">
+      <div>
+        <label>Stock</label>
+        <select id="proj-stock-sel" onchange="projSelectStock()" style="min-width:220px">
+          <option value="">-- Select a projected stock --</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div id="proj-empty" class="empty-state">
+    Enable <strong style="color:var(--gr-tx)">Project</strong> on a stock in the Watchlist tab to project it here.
+  </div>
+  <div id="proj-stock-view"></div>
+  <div id="proj-overview" style="display:none;margin-top:16px"></div>
+  <div class="card" style="margin-top:12px">
+    <div class="ct">Rates used</div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div>
         <div id="proj-fx-status" class="fig-caption" style="margin-bottom:3px">Rates not yet refreshed</div>
@@ -385,31 +464,17 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
       <button class="btn" id="proj-fx-btn" onclick="projFetchFX()" style="white-space:nowrap">&#9711; Refresh rates</button>
     </div>
   </div>
-  <div style="margin-bottom:14px">
-    <label class="lbl">Projected stock</label>
-    <select id="proj-stock-sel" onchange="projSelectStock()" class="sinp" style="min-width:220px">
-      <option value="">-- Select a projected stock --</option>
-    </select>
-  </div>
-  <div id="proj-stock-view"></div>
-  <div id="proj-empty" class="empty-state">
-    Enable <strong style="color:var(--gr-tx)">Project</strong> on a stock in the Watchlist tab to project it here.
-  </div>
-  <div id="proj-overview" style="display:none;margin-top:16px"></div>
   </div>
   <div class="bpn" id="iv-pn-watchlist">
-  <div style="margin-bottom:14px">
+  <div class="home-hero">
     <div class="sect-title">Watchlist</div>
     <div class="sect-sub">Search any stock or ETF, add it, then enable Track or Project.</div>
-  </div>
-  <div class="card" style="margin-bottom:12px">
-    <div class="ct">Search &amp; add</div>
-    <div style="display:flex;gap:8px;margin-bottom:8px">
+    <div style="display:flex;gap:8px;margin-top:10px">
       <input class="finp" type="text" id="wl-inp" placeholder="Ticker or name — e.g. CSPX, Apple, VHYL..." style="flex:1" oninput="wlType(this.value)" onkeydown="if(event.key==='Enter')wlSearch()">
       <button class="btn" onclick="wlSearch()" style="white-space:nowrap">Search</button>
     </div>
-    <div id="wl-res" style="display:none;border:1px solid var(--br);border-radius:8px;overflow:hidden;margin-bottom:4px"></div>
-    <div class="fig-caption">Search via Twelvedata &middot; Prices via Yahoo Finance on demand</div>
+    <div id="wl-res" style="display:none;border:1px solid var(--br);border-radius:8px;overflow:hidden;margin-top:8px"></div>
+    <div class="fig-caption" style="margin-top:8px">Search via Twelvedata &middot; Prices via Yahoo Finance on demand</div>
   </div>
   <div class="ct">My watchlist</div>
   <div id="wl-list"></div>
@@ -576,7 +641,7 @@ async function projFetchFX(){
   var btn=el('proj-fx-btn');if(btn)btn.textContent='Refreshing...';
   var ok=false;
   try{
-    var r=await fetch('https://open.er-api.com/v6/latest/'+baseCurrency);
+    var r=await fetch('https://open.er-api.com/v6/latest/'+baseCurrency+'?_='+Date.now(),{cache:'no-store'});
     if(r.ok){
       var d=await r.json();
       if(d.rates){
@@ -589,7 +654,7 @@ async function projFetchFX(){
     }
   }catch(e){}
   try{
-    var ir=await fetch('https://api.worldbank.org/v2/country/US/indicator/FP.CPI.TOTL.ZG?format=json&mrv=1');
+    var ir=await fetch('https://api.worldbank.org/v2/country/US/indicator/FP.CPI.TOTL.ZG?format=json&mrv=1&_='+Date.now(),{cache:'no-store'});
     if(ir.ok){var id=await ir.json();var irow=(id[1]||[])[0];if(irow&&irow.value!=null){fxData.inflation=parseFloat(irow.value.toFixed(1));}}
   }catch(e){}
   fxData.status=ok?'ok':'fail';
@@ -657,7 +722,7 @@ function recalcBudget(){
   budgetLists.savings.forEach(function(r){if(r.amt>0){pL.push(r.name);pD.push(r.amt);pC.push(isDk()?'#8ab4f8':'#4a7fdc');}});
   if(buf>0){pL.push('Buffer');pD.push(buf);pC.push(isDk()?'#f9c84a':'#d4a017');}
   mkC('chart-pie',{type:'doughnut',data:{labels:pL,datasets:[{data:pD,backgroundColor:pC,borderColor:isDk()?'#32343a':'#f6f7f9',borderWidth:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:tc().color,font:{size:11},padding:8,boxWidth:10}},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:window.innerWidth<600?'bottom':'right',labels:{color:tc().color,font:{size:11},padding:8,boxWidth:10}},
     tooltip:{backgroundColor:isDk()?'#252729':'#fff',borderColor:isDk()?'#44464e':'#e3e5e8',borderWidth:1,bodyColor:isDk()?'#dbdee1':'#1c1e22',
     callbacks:{label:function(c){return c.label+': '+fmtMoney(c.raw);}}}}}});
   saveAll();
@@ -771,7 +836,7 @@ function spRenderBudgetCard(){
   var html='<div class="plab"><div class="ptit" style="color:var(--yw-tx)">Living expense budget</div></div>'
     +'<div class="prow" style="margin-bottom:10px"><input class="sinp-living" type="number" id="living-budget" value="'+(budget||'')+'" placeholder="0" min="0" step="10"><div><div class="punit">'+baseCurrency+' / month</div></div></div>'
     +'<div class="scl">Total spent — '+MN[new Date().getMonth()]+'</div>'
-    +'<div class="fig-hero num'+(over?' amt-over':'')+'">'+fmtMoney(total)+'</div>';
+    +'<div class="fig-hero'+(over?' amt-over':'')+'">'+fmtMoney(total)+'</div>';
   if(budget>0){
     html+='<div class="lbbar"><div class="lbbar-fill'+(over?' over':'')+'" style="width:'+pct+'%"></div></div>'
       +'<div class="fig-caption" style="margin-top:6px">'+(over
@@ -1201,7 +1266,7 @@ async function wlSearch(){
         +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'
           +'<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--bl-bg);color:var(--bl-tx)">'+(item.instrument_type||'')+'</span>'
           +'<span style="font-size:11px;font-weight:600;color:'+(isUS?'var(--yw-tx)':isLSE?'var(--gr-tx)':'var(--dm)')+'">'+(item.exchange||'')+'</span>'
-          +(already?'<span style="font-size:11px;color:var(--gr-tx)">&#10003; Added</span>':'<button class="btn" style="font-size:11px" onclick=\'wlAdd('+JSON.stringify(item).replace(/'/g,"&#39;")+')\'">+ Add</button>')
+          +(already?'<span style="font-size:11px;color:var(--gr-tx)">&#10003; Added</span>':'<button class="btn" style="font-size:11px" onclick=\'wlAdd('+JSON.stringify(item).replace(/'/g,"&#39;")+')\'>+ Add</button>')
         +'</div></div>';
     });
     res.innerHTML=html;
@@ -1224,9 +1289,10 @@ async function wlFetch(idx){
   var item=wlData[idx];item.price=null;item.lastUpdated=null;wlRender();
   var ticker=item.sym;
   if(['LSE','XLON','CBOE','BCXE'].indexOf(item.exchange)>=0)ticker=item.sym.includes('.')?item.sym:(item.sym+'.L');
-  var yahooUrl='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+'?interval=1d&range=5d';
-  var proxies=[{url:'https://corsproxy.io/?url='+encodeURIComponent(yahooUrl),raw:true},{url:'https://api.allorigins.win/get?url='+encodeURIComponent(yahooUrl),raw:false}];
-  function fetchT(u,ms){return Promise.race([fetch(u),new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},ms);})]);}
+  var cacheBust=Date.now();
+  var yahooUrl='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+'?interval=1d&range=5d&_='+cacheBust;
+  var proxies=[{url:'https://corsproxy.io/?url='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:true},{url:'https://api.allorigins.win/get?url='+encodeURIComponent(yahooUrl)+'&_ts='+cacheBust,raw:false}];
+  function fetchT(u,ms){return Promise.race([fetch(u,{cache:'no-store'}),new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},ms);})]);}
   for(var pi=0;pi<proxies.length;pi++){
     try{
       var r=await fetchT(proxies[pi].url,9000);if(!r.ok)continue;
@@ -1283,7 +1349,7 @@ function wlRender(){
             +'<button style="'+dnS+'"'+(atBot?' disabled':' onclick="wlMove('+idx+',1)"')+' title="Move down">&#8681;</button>'
           +'</div>'+priceArea+'</div>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 0;border-top:1px solid var(--br);border-bottom:1px solid var(--br);margin-bottom:10px">'
+      +'<div class="wl-meta">'
         +'<div><div class="mlabel">Prev close</div><div class="mval">'+(hasPrice&&item.prevClose?esc(item.currency)+' '+item.prevClose.toFixed(2):'--')+'</div></div>'
         +'<div><div class="mlabel">Currency</div><div class="mval">'+esc(item.currency)+'</div></div>'
         +'<div><div class="mlabel">Type</div><div class="mval">'+esc(item.type||'--')+'</div></div>'
@@ -1424,6 +1490,17 @@ wlLoad();
 wlRender();
 renderFXBar();
 recalcBudget();
+
+var _vNarrow=window.innerWidth<600;
+window.addEventListener('resize',function(){
+  var n=window.innerWidth<600;
+  if(n===_vNarrow)return;
+  _vNarrow=n;
+  recalcBudget();
+  if(trKey)renderTr();
+  if(projKey)renderProjStock();
+  renderProjOverview();
+});
 
 </script>
 </body>
