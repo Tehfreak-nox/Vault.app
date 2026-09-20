@@ -607,8 +607,10 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   <button class="btn" id="proj-fx-btn" onclick="projFetchFX()" style="margin-bottom:6px">&#9711; Refresh rates</button>
   <div class="curhint" id="set-fx-line" style="margin:0 0 16px;max-width:none"></div>
   <label class="lbl">Watchlist price data</label>
-  <div class="mds" style="margin-bottom:8px">Free Yahoo/proxy price refresh is unreliable. For reliable Watchlist prices, get a free API key at <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener" style="color:var(--bl-tx)">twelvedata.com</a> (no card needed) and paste it here.</div>
-  <input class="finp" type="text" id="price-api-key" placeholder="Twelvedata API key (optional)" oninput="setPriceApiKey(this.value)" style="margin-bottom:16px">
+  <div class="mds" style="margin-bottom:8px">Free Yahoo/proxy price refresh is unreliable. For reliable Watchlist prices, get a free API key at <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener" style="color:var(--bl-tx)">twelvedata.com</a> (no card needed) and paste it here. Covers US-listed stocks well; some LSE/international listings aren't included on their free plan.</div>
+  <input class="finp" type="text" id="price-api-key" placeholder="Twelvedata API key (optional)" oninput="setPriceApiKey(this.value)" style="margin-bottom:12px">
+  <div class="mds" style="margin-bottom:8px">For LSE-listed stocks/ETFs specifically (e.g. CSPX), also add a free key from <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener" style="color:var(--bl-tx)">alphavantage.co</a> (instant, no email needed). Free tier is limited to 25 lookups/day, so use "Refresh all" sparingly if you rely on it.</div>
+  <input class="finp" type="text" id="av-api-key" placeholder="Alpha Vantage API key (optional, for LSE stocks)" oninput="setAvApiKey(this.value)" style="margin-bottom:16px">
   <label class="lbl">Backup</label>
   <div class="mds" style="margin-bottom:10px">Download everything on this device — budget, spending, tracker, projections, watchlist — as one file. If you switch devices, nothing carries over on its own; use this file to bring it all back.</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -644,6 +646,7 @@ var ivActiveView='tracker';
 var budgetLists={income:[],expenses:[],savings:[]};
 var baseCurrency='BHD';
 var priceApiKey='';
+var avApiKey='';
 var CUR={BHD:{code:'BHD',sym:'BD',dp:3},USD:{code:'USD',sym:'$',dp:2},
          GBP:{code:'GBP',sym:'£',dp:2},EUR:{code:'EUR',sym:'€',dp:2},
          AED:{code:'AED',sym:'AED',dp:2},SAR:{code:'SAR',sym:'SAR',dp:2},
@@ -735,7 +738,7 @@ function setBaseCurrency(code){
 // ── SAVE / LOAD ──
 function saveAll(){
   try{
-    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),living:gn('living-expense'),baseCurrency:baseCurrency,pkey:priceApiKey}));
+    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),living:gn('living-expense'),baseCurrency:baseCurrency,pkey:priceApiKey,avkey:avApiKey}));
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
@@ -758,7 +761,7 @@ function normExp(d){
 function loadAll(){
   try{
     var r=localStorage.getItem(SK);
-    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;if(s.living!=null)el('living-expense').value=s.living;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';priceApiKey=s.pkey||'';}}
+    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;if(s.living!=null)el('living-expense').value=s.living;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';priceApiKey=s.pkey||'';avApiKey=s.avkey||'';}}
     var wr=localStorage.getItem(WL_SK);if(wr)wlData=JSON.parse(wr);
     var tr=localStorage.getItem(TR_SK);if(tr)trData=JSON.parse(tr);
     var pr=localStorage.getItem(PROJ_SK);if(pr)projData=JSON.parse(pr);
@@ -1684,6 +1687,28 @@ async function wlFetchViaTwelvedata(item,errLog){
   }
   throw lastErr;
 }
+function wlAVSymbol(item){
+  var m={'LSE':'.LON','XLON':'.LON','CBOE':'.LON','BCXE':'.LON'};
+  var suf=m[item.exchange];
+  return suf?(item.sym+suf):null;
+}
+async function wlFetchViaAlphaVantage(item){
+  var avSym=wlAVSymbol(item);
+  if(!avSym)throw new Error('no Alpha Vantage exchange mapping for '+(item.exchange||'this exchange'));
+  var r=await fetch('https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol='+encodeURIComponent(avSym)+'&apikey='+encodeURIComponent(avApiKey)+'&_='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  var d=await r.json();
+  if(d.Note)throw new Error('rate limited — '+String(d.Note).slice(0,80));
+  if(d.Information)throw new Error(String(d.Information).slice(0,120));
+  if(d['Error Message'])throw new Error(String(d['Error Message']).slice(0,120));
+  var q=d['Global Quote'];
+  var px=q&&parseFloat(q['05. price']);
+  if(!q||isNaN(px)||px===0)throw new Error('no price in response for '+avSym);
+  var prev=parseFloat(q['08. previous close']);
+  var chg=parseFloat(q['09. change']);
+  var chgPct=parseFloat(String(q['10. change percent']||'').replace('%',''));
+  return {price:px,prevClose:isNaN(prev)?null:prev,change:isNaN(chg)?null:chg,changePct:isNaN(chgPct)?null:chgPct,currency:item.currency};
+}
 async function wlFetch(idx,batch){
   if(idx<0||idx>=wlData.length)return false;
   var item=wlData[idx];
@@ -1697,6 +1722,17 @@ async function wlFetch(idx,batch){
       wlSave();wlRender();
       return true;
     }catch(err){/* already logged per attempt in wlFetchViaTwelvedata */}
+  }
+  if(avApiKey&&wlAVSymbol(item)){
+    try{
+      var qav=await wlFetchViaAlphaVantage(item);
+      item.price=qav.price;item.prevClose=qav.prevClose;item.change=qav.change;item.changePct=qav.changePct;item.currency=qav.currency;
+      item.lastUpdated=new Date().toLocaleString();item.wlErrLog=null;
+      wlSave();wlRender();
+      return true;
+    }catch(err){
+      var eAv=item.sym+' via Alpha Vantage: '+err.message;errLog.push(eAv);console.warn('[Vault wlFetch]',eAv);
+    }
   }
   function once(u,ms){
     return Promise.race([
@@ -1863,8 +1899,9 @@ function dlExp(){
   setTimeout(function(){URL.revokeObjectURL(url);},1000);
 }
 function openImp(){el('imp-tx').value='';el('imp-file').value='';el('m-imp').classList.add('on');}
-function openSettings(){var k=el('price-api-key');if(k)k.value=priceApiKey;el('m-settings').classList.add('on');}
+function openSettings(){var k=el('price-api-key');if(k)k.value=priceApiKey;var a=el('av-api-key');if(a)a.value=avApiKey;el('m-settings').classList.add('on');}
 function setPriceApiKey(v){priceApiKey=(v||'').trim();saveAll();}
+function setAvApiKey(v){avApiKey=(v||'').trim();saveAll();}
 function impFileChosen(inp){
   var f=inp.files&&inp.files[0];if(!f)return;
   var reader=new FileReader();
