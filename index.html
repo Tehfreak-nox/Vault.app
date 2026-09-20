@@ -1568,7 +1568,7 @@ function wlProxies(url,cacheBust){
 async function wlFetch(idx,batch){
   if(idx<0||idx>=wlData.length)return false;
   var item=wlData[idx];
-  item.price=null;item.lastUpdated=null;wlRender();
+  item.price=null;item.lastUpdated=null;item.wlErrLog=null;wlRender();
   function once(u,ms){
     return Promise.race([
       fetch(u,{headers:{'Accept':'application/json'},cache:'no-store'}),
@@ -1576,30 +1576,31 @@ async function wlFetch(idx,batch){
     ]);
   }
   var tickers=wlTickers(item);
-  var lastErr='';
+  var errLog=[];
   for(var ti=0;ti<tickers.length;ti++){
     var cacheBust=Date.now();
     var yurl='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(tickers[ti])+'?interval=1d&range=5d&_='+cacheBust;
     var proxies=wlProxies(yurl,cacheBust);
     for(var pi=0;pi<proxies.length;pi++){
+      var proxyName=proxies[pi].u.split('/')[2];
       try{
         var r=await once(proxies[pi].u,9000);
-        if(!r.ok){lastErr='HTTP '+r.status+' from proxy '+pi+' for '+tickers[ti];console.warn('[Vault wlFetch]',lastErr,proxies[pi].u);continue;}
+        if(!r.ok){var e1=tickers[ti]+' via '+proxyName+': HTTP '+r.status;errLog.push(e1);console.warn('[Vault wlFetch]',e1,proxies[pi].u);continue;}
         var text=await r.text(),data;
         try{
           data=JSON.parse(text);
           if(proxies[pi].mode==='wrap'&&data&&typeof data.contents==='string')data=JSON.parse(data.contents);
-        }catch(err){lastErr='Bad JSON from proxy '+pi+' for '+tickers[ti]+': '+text.slice(0,150);console.warn('[Vault wlFetch]',lastErr);continue;}
+        }catch(err){var e2=tickers[ti]+' via '+proxyName+': bad JSON \u2014 '+text.slice(0,80);errLog.push(e2);console.warn('[Vault wlFetch]',e2);continue;}
         var res=data&&data.chart&&data.chart.result&&data.chart.result[0];
         var meta=res&&res.meta;
-        if(!meta){lastErr='No meta in response from proxy '+pi+' for '+tickers[ti];console.warn('[Vault wlFetch]',lastErr,data&&data.chart&&data.chart.error);continue;}
+        if(!meta){var e3=tickers[ti]+' via '+proxyName+': no meta \u2014 '+((data&&data.chart&&data.chart.error&&data.chart.error.description)||'unknown');errLog.push(e3);console.warn('[Vault wlFetch]',e3,data);continue;}
         var px=meta.regularMarketPrice;
         if(px==null){
           var q=res.indicators&&res.indicators.quote&&res.indicators.quote[0];
           var cl=q&&q.close;
           if(cl)for(var ci=cl.length-1;ci>=0;ci--){if(cl[ci]!=null){px=cl[ci];break;}}
         }
-        if(px==null){lastErr='No price in response from proxy '+pi+' for '+tickers[ti];console.warn('[Vault wlFetch]',lastErr,meta);continue;}
+        if(px==null){var e4=tickers[ti]+' via '+proxyName+': no price field in response';errLog.push(e4);console.warn('[Vault wlFetch]',e4,meta);continue;}
         var cur=meta.currency||item.currency;
         var prev=meta.chartPreviousClose||meta.previousClose||null;
         if(cur==='GBp'||cur==='GBX'){px=px/100;if(prev)prev=prev/100;cur='GBP';}
@@ -1608,15 +1609,27 @@ async function wlFetch(idx,batch){
         item.changePct=prev?((px-prev)/prev*100):null;
         item.currency=cur;
         item.lastUpdated=new Date().toLocaleString();
+        item.wlErrLog=null;
         wlSave();wlRender();
         return true;
-      }catch(err){lastErr='Proxy '+pi+' threw for '+tickers[ti]+': '+err.message;console.warn('[Vault wlFetch]',lastErr);}
+      }catch(err){var e5=tickers[ti]+' via '+proxyName+': '+err.message;errLog.push(e5);console.warn('[Vault wlFetch]',e5);}
     }
   }
-  console.error('[Vault wlFetch] all proxies/tickers failed for '+item.sym+'. Last error:',lastErr);
-  item.lastUpdated='Price unavailable \u2014 check browser console, or try Refresh all again';
+  console.error('[Vault wlFetch] all proxies/tickers failed for '+item.sym,errLog);
+  item.lastUpdated='Refresh failed \u2014 see details below';
+  item.wlErrLog=errLog;
   wlSave();wlRender();
   return false;
+}
+function wlCopyErr(idx){
+  var item=wlData[idx];if(!item||!item.wlErrLog)return;
+  var txt=item.sym+' refresh failed:\n'+item.wlErrLog.join('\n');
+  var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
+  var b=document.getElementById('wlce-'+idx);
+  if(b){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy error details';},2000);}
 }
 function wlRender(){
   var list=el('wl-list');var empty=el('wl-empty');
@@ -1663,7 +1676,11 @@ function wlRender(){
           +'<button class="btn" style="font-size:11px;color:var(--rd-v);border-color:var(--rd-br)" onclick="wlRemove('+idx+')">Remove</button>'
         +'</div>'
       +'</div>'
-      +(item.lastUpdated?'<div style="font-size:10px;color:var(--dm);margin-top:8px">Updated '+item.lastUpdated+'</div>':'')
+      +(item.lastUpdated?'<div style="font-size:10px;color:'+(item.wlErrLog?'var(--rd-v)':'var(--dm)')+';margin-top:8px">'+(item.wlErrLog?'✕ ':'')+item.lastUpdated+'</div>':'')
+      +(item.wlErrLog&&item.wlErrLog.length?'<div style="margin-top:6px;padding:8px 10px;background:var(--rd-bg);border:1px solid var(--rd-br);border-radius:6px">'
+        +'<div style="font-size:10px;font-family:monospace;color:var(--rd-tx);white-space:pre-wrap;word-break:break-word;line-height:1.5">'+esc(item.wlErrLog.join('\n'))+'</div>'
+        +'<button class="btn" id="wlce-'+idx+'" style="font-size:10px;margin-top:6px" onclick="wlCopyErr('+idx+')">Copy error details</button>'
+        +'</div>':'')
     +'</div>';
   });
   list.innerHTML=html;
