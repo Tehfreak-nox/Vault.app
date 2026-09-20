@@ -590,6 +590,9 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   <div class="mds" style="margin-bottom:8px">Used by the Projection bracket to convert between your base currency and each holding's native currency.</div>
   <button class="btn" id="proj-fx-btn" onclick="projFetchFX()" style="margin-bottom:6px">&#9711; Refresh rates</button>
   <div class="curhint" id="set-fx-line" style="margin:0 0 16px;max-width:none"></div>
+  <label class="lbl">Watchlist price data</label>
+  <div class="mds" style="margin-bottom:8px">Free Yahoo/proxy price refresh is unreliable. For reliable Watchlist prices, get a free API key at <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener" style="color:var(--bl-tx)">twelvedata.com</a> (no card needed) and paste it here.</div>
+  <input class="finp" type="text" id="price-api-key" placeholder="Twelvedata API key (optional)" onchange="setPriceApiKey(this.value)" style="margin-bottom:16px">
   <label class="lbl">Backup</label>
   <div class="mds" style="margin-bottom:10px">Download everything on this device — budget, spending, tracker, projections, watchlist — as one file. If you switch devices, nothing carries over on its own; use this file to bring it all back.</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -624,6 +627,7 @@ var spCatEditMode=false;
 var ivActiveView='tracker';
 var budgetLists={income:[],expenses:[],savings:[]};
 var baseCurrency='BHD';
+var priceApiKey='';
 var CUR={BHD:{code:'BHD',sym:'BD',dp:3},USD:{code:'USD',sym:'$',dp:2},
          GBP:{code:'GBP',sym:'£',dp:2},EUR:{code:'EUR',sym:'€',dp:2},
          AED:{code:'AED',sym:'AED',dp:2},SAR:{code:'SAR',sym:'SAR',dp:2},
@@ -715,7 +719,7 @@ function setBaseCurrency(code){
 // ── SAVE / LOAD ──
 function saveAll(){
   try{
-    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),living:gn('living-expense'),baseCurrency:baseCurrency}));
+    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),living:gn('living-expense'),baseCurrency:baseCurrency,pkey:priceApiKey}));
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
@@ -738,7 +742,7 @@ function normExp(d){
 function loadAll(){
   try{
     var r=localStorage.getItem(SK);
-    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;if(s.living!=null)el('living-expense').value=s.living;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';}}
+    if(r){var s=JSON.parse(r);if(s.v===11){if(s.budgetLists){if(s.budgetLists.income)budgetLists.income=s.budgetLists.income;if(s.budgetLists.expenses)budgetLists.expenses=s.budgetLists.expenses;if(s.budgetLists.savings)budgetLists.savings=s.budgetLists.savings;}if(s.sal!=null)el('main-salary').value=s.sal;if(s.living!=null)el('living-expense').value=s.living;baseCurrency=(s.baseCurrency&&CUR[s.baseCurrency])?s.baseCurrency:'BHD';priceApiKey=s.pkey||'';}}
     var wr=localStorage.getItem(WL_SK);if(wr)wlData=JSON.parse(wr);
     var tr=localStorage.getItem(TR_SK);if(tr)trData=JSON.parse(tr);
     var pr=localStorage.getItem(PROJ_SK);if(pr)projData=JSON.parse(pr);
@@ -1565,10 +1569,36 @@ function wlProxies(url,cacheBust){
     {u:'https://api.allorigins.win/get?url='+enc+'&_ts='+cacheBust,mode:'wrap'}
   ];
 }
+async function wlFetchViaTwelvedata(item){
+  var params='symbol='+encodeURIComponent(item.sym)+(item.exchange?'&exchange='+encodeURIComponent(item.exchange):'')+'&apikey='+encodeURIComponent(priceApiKey)+'&_='+Date.now();
+  var r=await fetch('https://api.twelvedata.com/quote?'+params,{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  var d=await r.json();
+  if(d.status==='error'||d.code)throw new Error(d.message||('Twelvedata error '+(d.code||'')));
+  var px=parseFloat(d.close);
+  if(isNaN(px))throw new Error('no close price in response');
+  var prev=parseFloat(d.previous_close);
+  return {price:px,prevClose:isNaN(prev)?null:prev,
+    change:d.change!=null&&!isNaN(parseFloat(d.change))?parseFloat(d.change):null,
+    changePct:d.percent_change!=null&&!isNaN(parseFloat(d.percent_change))?parseFloat(d.percent_change):null,
+    currency:d.currency||item.currency};
+}
 async function wlFetch(idx,batch){
   if(idx<0||idx>=wlData.length)return false;
   var item=wlData[idx];
   item.price=null;item.lastUpdated=null;item.wlErrLog=null;wlRender();
+  var errLog=[];
+  if(priceApiKey){
+    try{
+      var q=await wlFetchViaTwelvedata(item);
+      item.price=q.price;item.prevClose=q.prevClose;item.change=q.change;item.changePct=q.changePct;item.currency=q.currency;
+      item.lastUpdated=new Date().toLocaleString();item.wlErrLog=null;
+      wlSave();wlRender();
+      return true;
+    }catch(err){
+      var eTd=item.sym+' via Twelvedata: '+err.message;errLog.push(eTd);console.warn('[Vault wlFetch]',eTd);
+    }
+  }
   function once(u,ms){
     return Promise.race([
       fetch(u,{headers:{'Accept':'application/json'},cache:'no-store'}),
@@ -1576,7 +1606,6 @@ async function wlFetch(idx,batch){
     ]);
   }
   var tickers=wlTickers(item);
-  var errLog=[];
   for(var ti=0;ti<tickers.length;ti++){
     var cacheBust=Date.now();
     var yurl='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(tickers[ti])+'?interval=1d&range=5d&_='+cacheBust;
@@ -1735,7 +1764,8 @@ function dlExp(){
   setTimeout(function(){URL.revokeObjectURL(url);},1000);
 }
 function openImp(){el('imp-tx').value='';el('imp-file').value='';el('m-imp').classList.add('on');}
-function openSettings(){el('m-settings').classList.add('on');}
+function openSettings(){var k=el('price-api-key');if(k)k.value=priceApiKey;el('m-settings').classList.add('on');}
+function setPriceApiKey(v){priceApiKey=(v||'').trim();saveAll();}
 function impFileChosen(inp){
   var f=inp.files&&inp.files[0];if(!f)return;
   var reader=new FileReader();
