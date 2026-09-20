@@ -592,7 +592,7 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   <div class="curhint" id="set-fx-line" style="margin:0 0 16px;max-width:none"></div>
   <label class="lbl">Watchlist price data</label>
   <div class="mds" style="margin-bottom:8px">Free Yahoo/proxy price refresh is unreliable. For reliable Watchlist prices, get a free API key at <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener" style="color:var(--bl-tx)">twelvedata.com</a> (no card needed) and paste it here.</div>
-  <input class="finp" type="text" id="price-api-key" placeholder="Twelvedata API key (optional)" onchange="setPriceApiKey(this.value)" style="margin-bottom:16px">
+  <input class="finp" type="text" id="price-api-key" placeholder="Twelvedata API key (optional)" oninput="setPriceApiKey(this.value)" style="margin-bottom:16px">
   <label class="lbl">Backup</label>
   <div class="mds" style="margin-bottom:10px">Download everything on this device — budget, spending, tracker, projections, watchlist — as one file. If you switch devices, nothing carries over on its own; use this file to bring it all back.</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
