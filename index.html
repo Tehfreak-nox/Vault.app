@@ -1637,6 +1637,17 @@ async function wlFetchViaTwelvedataOnce(item,extraParam){
     changePct:d.percent_change!=null&&!isNaN(parseFloat(d.percent_change))?parseFloat(d.percent_change):null,
     currency:d.currency||item.currency};
 }
+async function wlResolveMic(item){
+  var r=await fetch('https://api.twelvedata.com/symbol_search?symbol='+encodeURIComponent(item.sym)+'&outputsize=15&_='+Date.now(),{cache:'no-store'});
+  if(!r.ok)return null;
+  var d=await r.json();
+  var list=(d.data||[]).filter(function(x){return x.symbol&&x.mic_code;});
+  if(!list.length)return null;
+  var exact=list.find(function(x){return x.symbol===item.sym&&x.exchange===item.exchange;});
+  if(exact)return exact.mic_code;
+  var bySym=list.find(function(x){return x.symbol===item.sym;});
+  return bySym?bySym.mic_code:list[0].mic_code;
+}
 async function wlFetchViaTwelvedata(item,errLog){
   var attempts=[];
   if(item.mic)attempts.push({label:'mic_code='+item.mic,p:'&mic_code='+encodeURIComponent(item.mic)});
@@ -1650,6 +1661,26 @@ async function wlFetchViaTwelvedata(item,errLog){
       var e=item.sym+' via Twelvedata ('+attempts[i].label+'): '+err.message;
       errLog.push(e);console.warn('[Vault wlFetch]',e);
     }
+  }
+  try{
+    var mic=await wlResolveMic(item);
+    if(mic&&mic!==item.mic){
+      try{
+        var res=await wlFetchViaTwelvedataOnce(item,'&mic_code='+encodeURIComponent(mic));
+        item.mic=mic;
+        return res;
+      }catch(err2){
+        lastErr=err2;
+        var e2=item.sym+' via Twelvedata (resolved mic_code='+mic+'): '+err2.message;
+        errLog.push(e2);console.warn('[Vault wlFetch]',e2);
+      }
+    }else if(!mic){
+      var e3=item.sym+' via Twelvedata: symbol_search found no matching mic_code to resolve';
+      errLog.push(e3);console.warn('[Vault wlFetch]',e3);
+    }
+  }catch(err3){
+    var e4=item.sym+' via Twelvedata: symbol_search lookup failed — '+err3.message;
+    errLog.push(e4);console.warn('[Vault wlFetch]',e4);
   }
   throw lastErr;
 }
