@@ -267,6 +267,13 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 .flag:last-child{border-bottom:none}
 .flag b{color:var(--tx);font-weight:600}
 .muted-note{font-size:12px;color:var(--dm);padding:4px 0}
+.chkrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--br)}
+.chkrow:last-child{border-bottom:none}
+.chkrow input[type=checkbox]{width:19px;height:19px;min-width:19px;accent-color:var(--gr-v);cursor:pointer}
+.chkrow-name{flex:1;min-width:0;font-size:13px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chkrow.done .chkrow-name{color:var(--dm);text-decoration:line-through}
+.chkrow-amt{font-size:12px;color:var(--mu);font-variant-numeric:tabular-nums lining-nums;flex-shrink:0}
+.chkrow.done .chkrow-amt{color:var(--gr-v)}
 .disc{padding:0}
 .disc>summary{display:flex;align-items:center;justify-content:space-between;list-style:none;cursor:pointer;padding:13px 16px;font-size:12px;font-weight:600;color:var(--mu)}
 .disc>summary::-webkit-details-marker{display:none}
@@ -491,6 +498,15 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
     </div>
     <div class="card"><div class="ct">Entries</div><div id="sp-entries"></div></div>
     <details class="card disc">
+      <summary>Monthly checklist<span class="chev">›</span></summary>
+      <div class="btabs" id="sp-bill-tabs">
+        <button class="btab on" data-sb="expenses">Expenses</button>
+        <button class="btab" data-sb="savings">Savings</button>
+      </div>
+      <div class="bpn on" id="sb-pn-expenses"><div id="sp-bill-expenses"></div></div>
+      <div class="bpn" id="sb-pn-savings"><div id="sp-bill-savings"></div></div>
+    </details>
+    <details class="card disc">
       <summary>Across records<span class="chev">›</span></summary>
       <div class="yrnav" id="sp-yr-nav"></div>
       <div id="sp-across"></div>
@@ -621,7 +637,7 @@ var wlData=[];
 var trData={};
 var projData={};
 var expDefaultCats=['Groceries','Eating out','Fuel','Games','Date night','Gifts','Other'];
-var expData={v:2,entries:[],cats:expDefaultCats.slice(),budgets:{},starts:{},payDay:26,colors:{}};
+var expData={v:2,entries:[],cats:expDefaultCats.slice(),budgets:{},starts:{},payDay:26,colors:{},paidExp:{},paidSav:{}};
 var spSelectedCat='';
 var spCatEditMode=false;
 var ivActiveView='tracker';
@@ -728,14 +744,14 @@ function saveAll(){
   flash();
 }
 function normExp(d){
-  var fresh={v:2,entries:[],cats:expDefaultCats.slice(),budgets:{},starts:{},payDay:26,colors:{}};
+  var fresh={v:2,entries:[],cats:expDefaultCats.slice(),budgets:{},starts:{},payDay:26,colors:{},paidExp:{},paidSav:{}};
   if(!d)return fresh;
   var cats=(d.cats&&d.cats.length)?d.cats:expDefaultCats.slice();
-  if(d.v===2)return {v:2,entries:d.entries||[],cats:cats,budgets:d.budgets||{},starts:d.starts||{},payDay:d.payDay||26,colors:d.colors||{}};
+  if(d.v===2)return {v:2,entries:d.entries||[],cats:cats,budgets:d.budgets||{},starts:d.starts||{},payDay:d.payDay||26,colors:d.colors||{},paidExp:d.paidExp||{},paidSav:d.paidSav||{}};
   if(d.v===1){
     var b={};
     (d.budgets||[]).forEach(function(x){if(x&&x.month)b[x.month]=x.amt;});
-    return {v:2,entries:d.entries||[],cats:cats,budgets:b,starts:{},payDay:26,colors:{}};
+    return {v:2,entries:d.entries||[],cats:cats,budgets:b,starts:{},payDay:26,colors:{},paidExp:{},paidSav:{}};
   }
   return fresh;
 }
@@ -1143,9 +1159,47 @@ function spRender(){
   var list=recList();
   if(!spRecKey||list.indexOf(spRecKey)===-1)spRecKey=recCurKey();
   spRenderNav();spRenderHead();spRenderQuick();
-  spRenderEntries();spRenderAcross();
+  spRenderEntries();spRenderAcross();spRenderBills();
 }
 function spInit(){spRender();}
+
+// ── SPENDING — expense/savings checklist ──
+function spIsPaid(kind,name){
+  var store=(kind==='exp')?(expData.paidExp||{}):(expData.paidSav||{});
+  var m=store[spRecKey];
+  return !!(m&&m[name]);
+}
+function spTogglePaid(kind,name){
+  var field=(kind==='exp')?'paidExp':'paidSav';
+  if(!expData[field])expData[field]={};
+  if(!expData[field][spRecKey])expData[field][spRecKey]={};
+  var m=expData[field][spRecKey];
+  if(m[name])delete m[name];else m[name]=true;
+  saveAll();spRenderBillList(kind);
+}
+function spRenderBillList(kind){
+  var list=(kind==='exp')?budgetLists.expenses:budgetLists.savings;
+  var target=(kind==='exp')?'sp-bill-expenses':'sp-bill-savings';
+  if(!list.length){
+    ht(target,'<div class="muted-note">No '+(kind==='exp'?'expenses':'savings items')+' set up yet. Add them in Budget → '+(kind==='exp'?'Expenses':'Savings')+'.</div>');
+    return;
+  }
+  var doneCount=0,doneAmt=0,totalAmt=0;
+  var rows=list.map(function(item){
+    var paid=spIsPaid(kind,item.name);
+    totalAmt+=item.amt||0;
+    if(paid){doneCount++;doneAmt+=item.amt||0;}
+    var safeName=esc(item.name||'Unnamed').replace(/'/g,'&#39;');
+    return '<label class="chkrow'+(paid?' done':'')+'">'
+      +'<input type="checkbox"'+(paid?' checked':'')+' onchange="spTogglePaid(\''+kind+'\',\''+safeName+'\')">'
+      +'<div class="chkrow-name">'+esc(item.name||'Unnamed')+'</div>'
+      +'<div class="chkrow-amt">'+fmtMoney(item.amt||0)+'</div>'
+    +'</label>';
+  }).join('');
+  var summary='<div class="fig-caption" style="margin-bottom:8px">'+doneCount+' of '+list.length+' '+(kind==='exp'?'paid':'contributed')+' this record · '+fmtMoney(doneAmt)+' of '+fmtMoney(totalAmt)+'</div>';
+  ht(target,summary+rows);
+}
+function spRenderBills(){spRenderBillList('exp');spRenderBillList('sav');}
 
 
 // INVESTING
@@ -1542,7 +1596,7 @@ async function wlSearch(){
 }
 function wlAdd(item){
   if(wlData.find(function(w){return w.sym===item.symbol&&w.exchange===item.exchange;}))return;
-  wlData.push({sym:item.symbol,name:item.instrument_name||item.symbol,exchange:item.exchange||'',
+  wlData.push({sym:item.symbol,name:item.instrument_name||item.symbol,exchange:item.exchange||'',mic:item.mic_code||'',
     type:item.instrument_type||'',currency:item.currency||'USD',
     price:null,prevClose:null,change:null,changePct:null,track:false,project:false,lastUpdated:null});
   wlSave();wlRender();wlSearch();wlFetch(wlData.length-1,true);
@@ -1569,8 +1623,8 @@ function wlProxies(url,cacheBust){
     {u:'https://api.allorigins.win/get?url='+enc+'&_ts='+cacheBust,mode:'wrap'}
   ];
 }
-async function wlFetchViaTwelvedata(item){
-  var params='symbol='+encodeURIComponent(item.sym)+(item.exchange?'&exchange='+encodeURIComponent(item.exchange):'')+'&apikey='+encodeURIComponent(priceApiKey)+'&_='+Date.now();
+async function wlFetchViaTwelvedataOnce(item,extraParam){
+  var params='symbol='+encodeURIComponent(item.sym)+extraParam+'&apikey='+encodeURIComponent(priceApiKey)+'&_='+Date.now();
   var r=await fetch('https://api.twelvedata.com/quote?'+params,{cache:'no-store'});
   if(!r.ok)throw new Error('HTTP '+r.status);
   var d=await r.json();
@@ -1583,6 +1637,22 @@ async function wlFetchViaTwelvedata(item){
     changePct:d.percent_change!=null&&!isNaN(parseFloat(d.percent_change))?parseFloat(d.percent_change):null,
     currency:d.currency||item.currency};
 }
+async function wlFetchViaTwelvedata(item,errLog){
+  var attempts=[];
+  if(item.mic)attempts.push({label:'mic_code='+item.mic,p:'&mic_code='+encodeURIComponent(item.mic)});
+  if(item.exchange)attempts.push({label:'exchange='+item.exchange,p:'&exchange='+encodeURIComponent(item.exchange)});
+  attempts.push({label:'no exchange param',p:''});
+  var lastErr=null;
+  for(var i=0;i<attempts.length;i++){
+    try{return await wlFetchViaTwelvedataOnce(item,attempts[i].p);}
+    catch(err){
+      lastErr=err;
+      var e=item.sym+' via Twelvedata ('+attempts[i].label+'): '+err.message;
+      errLog.push(e);console.warn('[Vault wlFetch]',e);
+    }
+  }
+  throw lastErr;
+}
 async function wlFetch(idx,batch){
   if(idx<0||idx>=wlData.length)return false;
   var item=wlData[idx];
@@ -1590,14 +1660,12 @@ async function wlFetch(idx,batch){
   var errLog=[];
   if(priceApiKey){
     try{
-      var q=await wlFetchViaTwelvedata(item);
+      var q=await wlFetchViaTwelvedata(item,errLog);
       item.price=q.price;item.prevClose=q.prevClose;item.change=q.change;item.changePct=q.changePct;item.currency=q.currency;
       item.lastUpdated=new Date().toLocaleString();item.wlErrLog=null;
       wlSave();wlRender();
       return true;
-    }catch(err){
-      var eTd=item.sym+' via Twelvedata: '+err.message;errLog.push(eTd);console.warn('[Vault wlFetch]',eTd);
-    }
+    }catch(err){/* already logged per attempt in wlFetchViaTwelvedata */}
   }
   function once(u,ms){
     return Promise.race([
@@ -1821,6 +1889,18 @@ el('mt').addEventListener('click',function(e){
 el('iv-views').addEventListener('click',function(e){
   var btn=e.target.closest('.btab');if(!btn||!btn.dataset.iv)return;
   ivSetView(btn.dataset.iv);
+});
+el('sp-bill-tabs').addEventListener('click',function(e){
+  var btn=e.target.closest('.btab');if(!btn||!btn.dataset.sb)return;
+  var btns=[].slice.call(el('sp-bill-tabs').querySelectorAll('.btab'));
+  var from=btns.findIndex(function(b){return b.classList.contains('on');});
+  var to=btns.indexOf(btn);
+  if(to===from)return;
+  btns.forEach(function(b){b.classList.remove('on');});
+  el('sb-pn-expenses').classList.remove('on');el('sb-pn-savings').classList.remove('on');
+  btn.classList.add('on');
+  var pn=el('sb-pn-'+btn.dataset.sb);pn.classList.add('on');
+  slideTo(pn,to-from);
 });
 el('tab-spending').addEventListener('click',function(e){
   var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
