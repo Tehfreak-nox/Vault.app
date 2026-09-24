@@ -896,7 +896,15 @@ function parseK(k){var p=k.split('-');return{y:parseInt(p[0]),m:parseInt(p[1])-1
 function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
 function addMonthK(k,delta){var o=parseK(k);var d=new Date(o.y,o.m+delta,1);return pKeyOf(d.getFullYear(),d.getMonth());}
 function payDay(){var p=parseInt(expData.payDay);return(p>=1&&p<=31)?p:26;}
-function defaultStart(k){var p=parseK(addMonthK(k,-1));return dKey(p.y,p.m,Math.min(payDay(),daysInMonth(p.y,p.m)));}
+function defaultStart(k){
+  var p=parseK(addMonthK(k,-1));
+  var day=Math.min(payDay(),daysInMonth(p.y,p.m));
+  var d=new Date(p.y,p.m,day);
+  var dow=d.getDay();
+  if(dow===5)d.setDate(d.getDate()-1);
+  else if(dow===6)d.setDate(d.getDate()-2);
+  return dKey(d.getFullYear(),d.getMonth(),d.getDate());
+}
 function startBounds(k){
   var o=parseK(addMonthK(k,-1)),nom=defaultStart(k);
   var lo=new Date(nom+'T00:00:00');lo.setDate(lo.getDate()-7);
