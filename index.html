@@ -484,11 +484,15 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
     <div class="hero-card" id="sp-rec-head"></div>
     <button class="ab" id="sp-quick-toggle" onclick="spToggleQuick()" style="display:none;margin-bottom:10px"><span class="add-ic">+</span> Add to this record</button>
     <div class="card" id="sp-quickadd">
+      <div id="sp-edit-banner" style="display:none;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--yw-tx);background:var(--yw-bg);border:1px solid var(--yw-br);border-radius:6px;padding:6px 10px;margin-bottom:10px">
+        <span>Editing this entry</span>
+        <button type="button" class="btn" style="font-size:10px" onclick="spCancelEdit()">Cancel</button>
+      </div>
       <div class="sp-add-row">
         <div style="flex:0 0 120px"><label class="lbl">Amount</label><input class="rinp" type="number" inputmode="decimal" id="sp-amt" placeholder="0.00" step="0.01" min="0" style="width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();spAddEntry();}"></div>
         <div style="flex:0 0 150px"><label class="lbl">Date</label><input class="rinp" type="date" id="sp-date" style="width:100%"></div>
         <div style="flex:1 1 150px"><label class="lbl">Note (optional)</label><input class="finp" type="text" id="sp-note" placeholder="Note"></div>
-        <button class="bprim" onclick="spAddEntry()">Add</button>
+        <button class="bprim" id="sp-submit-btn" onclick="spAddEntry()">Add</button>
       </div>
       <div class="cat-head">
         <label class="lbl" style="margin-bottom:0">Category</label>
@@ -972,6 +976,10 @@ function renameCat(oldName,v){
   var name=(v||'').trim();
   if(!name||name===oldName)return spRenderChips();
   if(expData.cats.some(function(c){return c.toLowerCase()===name.toLowerCase();}))return spRenderChips();
+  var affected=expData.entries.filter(function(e){return e.cat===oldName;}).length;
+  if(affected>0&&!confirm('Renaming "'+oldName+'" to "'+name+'" will also relabel '+affected+' existing '+(affected===1?'entry':'entries')+' currently tagged "'+oldName+'" — their amounts and dates stay the same, only the category label changes. Continue?')){
+    return spRenderChips();
+  }
   expData.cats[expData.cats.indexOf(oldName)]=name;
   if(expData.colors&&expData.colors[oldName]){expData.colors[name]=expData.colors[oldName];delete expData.colors[oldName];}
   expData.entries.forEach(function(e){if(e.cat===oldName)e.cat=name;});
@@ -981,11 +989,12 @@ function renameCat(oldName,v){
 
 var spRecKey=null;
 var spQuickOpen=false;
+var spEditingId=null;
 
 function spGoRec(delta){
   var list=recList(),i=list.indexOf(spRecKey);
   var ni=i+delta;if(ni<0||ni>=list.length)return;
-  spRecKey=list[ni];spQuickOpen=false;
+  spRecKey=list[ni];spQuickOpen=false;spEditingId=null;
   spRender();
   var pn=el('sp-body');if(pn)slideTo(pn,delta);
 }
@@ -1042,7 +1051,7 @@ function spRenderHead(){
 }
 function spRenderQuick(){
   var cur=recIsCurrent(spRecKey);
-  var open=cur||spQuickOpen;
+  var open=cur||spQuickOpen||!!spEditingId;
   var card=el('sp-quickadd');
   card.style.display=open?'':'none';
   el('sp-quick-toggle').style.display=open?'none':'';
@@ -1051,6 +1060,10 @@ function spRenderQuick(){
   if(!d.value||recKeyFor(d.value)!==spRecKey)d.value=cur?todayStr():recEnd(spRecKey);
   d.min=recStart(spRecKey);d.max=recEnd(spRecKey);
   spRenderChips();
+  var banner=el('sp-edit-banner');
+  if(banner)banner.style.display=spEditingId?'flex':'none';
+  var btn=el('sp-submit-btn');
+  if(btn)btn.textContent=spEditingId?'Save changes':'Add';
 }
 function spOrderedCats(){
   var used=[];
@@ -1096,6 +1109,8 @@ function spAddCat(){
   spSelectedCat=name;inp.value='';saveAll();spRenderChips();
 }
 function spRemoveCat(cat){
+  var affected=expData.entries.filter(function(e){return e.cat===cat;}).length;
+  if(affected>0&&!confirm('Remove "'+cat+'"? '+affected+' existing '+(affected===1?'entry keeps its':'entries keep their')+' "'+cat+'" label, but you won’t be able to pick it for new entries unless you add it back.'))return;
   var i=expData.cats.indexOf(cat);if(i!==-1)expData.cats.splice(i,1);
   if(expData.colors)delete expData.colors[cat];
   saveAll();spRenderChips();
@@ -1105,14 +1120,41 @@ function spAddEntry(){
   if(!amt||amt<=0){amtInp.focus();return;}
   var date=el('sp-date').value||todayStr();
   var cat=spSelectedCat||expData.cats[0]||'Other';
-  expData.entries.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
-    date:date,cat:cat,amt:parseFloat(amt.toFixed(2)),note:el('sp-note').value.trim()});
+  var note=el('sp-note').value.trim();
+  if(spEditingId){
+    var ex=expData.entries.find(function(x){return x.id===spEditingId;});
+    if(ex){ex.date=date;ex.cat=cat;ex.amt=parseFloat(amt.toFixed(2));ex.note=note;}
+    spEditingId=null;
+  }else{
+    expData.entries.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+      date:date,cat:cat,amt:parseFloat(amt.toFixed(2)),note:note});
+  }
   saveAll();
   amtInp.value='';el('sp-note').value='';amtInp.focus();
   spRecKey=recKeyFor(date);
   spRender();
 }
+function spEditEntry(id){
+  var e=expData.entries.find(function(x){return x.id===id;});
+  if(!e)return;
+  spEditingId=id;
+  spQuickOpen=true;
+  el('sp-amt').value=e.amt;
+  el('sp-date').value=e.date;
+  el('sp-note').value=e.note||'';
+  spSelectedCat=e.cat;
+  spRenderQuick();
+  var card=el('sp-quickadd');
+  if(card)card.scrollIntoView({behavior:'smooth',block:'center'});
+  el('sp-amt').focus();
+}
+function spCancelEdit(){
+  spEditingId=null;
+  el('sp-amt').value='';el('sp-note').value='';
+  spRenderQuick();
+}
 function spDeleteEntry(id){
+  if(spEditingId===id)spCancelEdit();
   var i=expData.entries.findIndex(function(e){return e.id===id;});
   if(i!==-1)expData.entries.splice(i,1);
   saveAll();spRender();
@@ -1125,7 +1167,7 @@ function spRenderEntries(){
     if(e.date!==day){day=e.date;html+='<div class="dgrp-h">'+fmtDay(e.date)+'</div>';}
     html+='<div class="erow"><div class="eamt">'+fmtMoney(e.amt,{dp:2})+'</div>'
       +'<div class="ecat"><i class="cdot" style="background:'+catColor(e.cat)+'"></i>'+esc(e.cat)+(e.note?'<span class="enote">'+esc(e.note)+'</span>':'')+'</div>'
-      +'<button class="xb" data-sp-del data-id="'+esc(e.id)+'" title="Delete">\u2715</button></div>';
+      +'<div style="display:flex;gap:4px;justify-self:end"><button class="xb" data-sp-edit data-id="'+esc(e.id)+'" title="Edit">&#9998;</button><button class="xb" data-sp-del data-id="'+esc(e.id)+'" title="Delete">\u2715</button></div></div>';
   });
   ht('sp-entries',html);
 }
@@ -1983,6 +2025,7 @@ el('sp-bill-tabs').addEventListener('click',function(e){
 el('tab-spending').addEventListener('click',function(e){
   var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
   var chip=e.target.closest('.sp-chip');if(chip){spSelectedCat=chip.dataset.cat;spRenderChips();return;}
+  var editEntry=e.target.closest('[data-sp-edit]');if(editEntry){spEditEntry(editEntry.dataset.id);return;}
   var delEntry=e.target.closest('[data-sp-del]');if(delEntry){spDeleteEntry(delEntry.dataset.id);return;}
 });
 el('tab-spending').addEventListener('keydown',function(e){
