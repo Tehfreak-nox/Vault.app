@@ -64,6 +64,8 @@ button{font-family:inherit}
 .tab.on::after{content:'';position:absolute;bottom:-3px;left:6px;right:6px;height:3px;background:var(--acc);border-radius:2px}
 .btab.on::after{content:'';position:absolute;bottom:-2px;left:6px;right:6px;height:2px;background:var(--acc);border-radius:2px}
 .tab:hover:not(.on){color:var(--tx)}
+.tab-add{all:unset;box-sizing:border-box;padding:8px 14px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;color:var(--dm);border:1px dashed var(--br)}
+.tab-add:hover{color:var(--tx);border-color:var(--btn-b)}
 .panel{display:none}.panel.on{display:block}
 .card{background:var(--sf);border-radius:var(--rad-c);padding:14px 16px;border:1px solid var(--br);margin-bottom:10px}
 .ct{font-size:12px;font-weight:600;letter-spacing:.01em;color:var(--mu);margin-bottom:12px}
@@ -292,6 +294,14 @@ input.mapname{font-size:12.5px;padding:6px 8px;min-width:0}
 .swrow{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .sw{all:unset;box-sizing:border-box;width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent}
 .sw.on{border-color:var(--tx)}
+.sw-open{all:unset;box-sizing:border-box;width:28px;height:28px;min-width:28px;border-radius:50%;cursor:pointer;border:2px solid var(--br)}
+.hsb-row{position:relative;padding-top:16px;margin-bottom:18px}
+.hsb-row:last-of-type{margin-bottom:0}
+.hsb-caret{position:absolute;top:2px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid var(--tx);transform:translateX(-50%);pointer-events:none}
+.hsb-slider{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:7px;outline:none;cursor:pointer;display:block}
+.hsb-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--sf);box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:pointer}
+.hsb-slider::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--sf);box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:pointer}
+.hsb-h{background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
 .segbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--inp-bg)}
 .seg{height:100%}
 .seg-key{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:9px}
@@ -436,19 +446,63 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
 
 <div class="tabs" id="mt">
   <button class="tab on" data-t="budget">&#127968; Budget</button>
-  <button class="tab" data-t="spending">Spending</button>
-  <button class="tab" data-t="investing">Investing</button>
+  <button class="tab" data-t="investing" id="tab-btn-investing" style="display:none">Investing</button>
+  <button class="tab-add" id="tab-add-investing" onclick="tabsAddInvesting()" title="Add Investing tab" aria-label="Add Investing tab">+</button>
 </div>
 
 <!-- BUDGET -->
 <div class="panel on" id="tab-budget">
   <div class="btabs">
-    <button class="btab on" data-b="income">Income</button>
+    <button class="btab on" data-b="spending">Spending</button>
+    <button class="btab" data-b="income">Income</button>
     <button class="btab" data-b="expenses">Expenses</button>
     <button class="btab" data-b="savings">Savings</button>
     <button class="btab" data-b="breakdown">Breakdown</button>
   </div>
-  <div class="bpn on" id="bp-income">
+  <div class="bpn on" id="bp-spending">
+    <div class="recnav" id="sp-rec-nav"></div>
+    <div id="sp-body">
+      <div class="hero-card" id="sp-rec-head"></div>
+      <button class="ab" id="sp-quick-toggle" onclick="spToggleQuick()" style="display:none;margin-bottom:10px"><span class="add-ic">+</span> Add to this record</button>
+      <div class="card" id="sp-quickadd">
+        <div id="sp-edit-banner" style="display:none;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--yw-tx);background:var(--yw-bg);border:1px solid var(--yw-br);border-radius:6px;padding:6px 10px;margin-bottom:10px">
+          <span>Editing this entry</span>
+          <button type="button" class="btn" style="font-size:10px" onclick="spCancelEdit()">Cancel</button>
+        </div>
+        <div class="sp-add-row">
+          <div style="flex:0 0 120px"><label class="lbl">Amount</label><input class="rinp" type="number" inputmode="decimal" id="sp-amt" placeholder="0.00" step="0.01" min="0" style="width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();spAddEntry();}"></div>
+          <div style="flex:0 0 150px"><label class="lbl">Date</label><input class="rinp" type="date" id="sp-date" style="width:100%"></div>
+          <div style="flex:1 1 150px"><label class="lbl">Note (optional)</label><input class="finp" type="text" id="sp-note" placeholder="Note"></div>
+          <button class="bprim" id="sp-submit-btn" onclick="spAddEntry()">Add</button>
+        </div>
+        <div class="cat-head">
+          <label class="lbl" style="margin-bottom:0">Category</label>
+          <button type="button" class="btn" onclick="spToggleCatEdit()" id="sp-cat-edit-btn">Edit</button>
+        </div>
+        <div id="sp-cat-chips" class="chip-row"></div>
+      </div>
+      <div class="card"><div class="ct">Entries</div><div id="sp-entries"></div></div>
+      <details class="card disc" id="sp-bd-disc" ontoggle="spRenderBreakdown()">
+        <summary>Spending breakdown<span class="chev">›</span></summary>
+        <div id="sp-breakdown"></div>
+      </details>
+      <details class="card disc">
+        <summary>Monthly checklist<span class="chev">›</span></summary>
+        <div class="btabs" id="sp-bill-tabs">
+          <button class="btab on" data-sb="expenses">Expenses</button>
+          <button class="btab" data-sb="savings">Savings</button>
+        </div>
+        <div class="bpn on" id="sb-pn-expenses"><div id="sp-bill-expenses"></div></div>
+        <div class="bpn" id="sb-pn-savings"><div id="sp-bill-savings"></div></div>
+      </details>
+      <details class="card disc">
+        <summary>Across records<span class="chev">›</span></summary>
+        <div class="yrnav" id="sp-yr-nav"></div>
+        <div id="sp-across"></div>
+      </details>
+    </div>
+  </div>
+  <div class="bpn" id="bp-income">
     <div class="scard">
       <div class="plab"><div class="dnum dn-gr star-ic">&#9733;</div><div class="ptit ct-gr">Main Income</div></div>
       <div class="psub">Your primary monthly income. Drives all budget calculations.</div>
@@ -474,47 +528,6 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
     <div class="sg" id="bkd-stats"></div>
     <div class="card"><div class="ct">Monthly breakdown</div><div id="budget-bars"></div></div>
     <div class="card"><div class="ct">Allocation</div><div class="cw cw-sm"><canvas id="chart-pie"></canvas></div></div>
-  </div>
-</div>
-
-<!-- SPENDING -->
-<div class="panel" id="tab-spending">
-  <div class="recnav" id="sp-rec-nav"></div>
-  <div id="sp-body">
-    <div class="hero-card" id="sp-rec-head"></div>
-    <button class="ab" id="sp-quick-toggle" onclick="spToggleQuick()" style="display:none;margin-bottom:10px"><span class="add-ic">+</span> Add to this record</button>
-    <div class="card" id="sp-quickadd">
-      <div id="sp-edit-banner" style="display:none;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--yw-tx);background:var(--yw-bg);border:1px solid var(--yw-br);border-radius:6px;padding:6px 10px;margin-bottom:10px">
-        <span>Editing this entry</span>
-        <button type="button" class="btn" style="font-size:10px" onclick="spCancelEdit()">Cancel</button>
-      </div>
-      <div class="sp-add-row">
-        <div style="flex:0 0 120px"><label class="lbl">Amount</label><input class="rinp" type="number" inputmode="decimal" id="sp-amt" placeholder="0.00" step="0.01" min="0" style="width:100%" onkeydown="if(event.key==='Enter'){event.preventDefault();spAddEntry();}"></div>
-        <div style="flex:0 0 150px"><label class="lbl">Date</label><input class="rinp" type="date" id="sp-date" style="width:100%"></div>
-        <div style="flex:1 1 150px"><label class="lbl">Note (optional)</label><input class="finp" type="text" id="sp-note" placeholder="Note"></div>
-        <button class="bprim" id="sp-submit-btn" onclick="spAddEntry()">Add</button>
-      </div>
-      <div class="cat-head">
-        <label class="lbl" style="margin-bottom:0">Category</label>
-        <button type="button" class="btn" onclick="spToggleCatEdit()" id="sp-cat-edit-btn">Edit</button>
-      </div>
-      <div id="sp-cat-chips" class="chip-row"></div>
-    </div>
-    <div class="card"><div class="ct">Entries</div><div id="sp-entries"></div></div>
-    <details class="card disc">
-      <summary>Monthly checklist<span class="chev">›</span></summary>
-      <div class="btabs" id="sp-bill-tabs">
-        <button class="btab on" data-sb="expenses">Expenses</button>
-        <button class="btab" data-sb="savings">Savings</button>
-      </div>
-      <div class="bpn on" id="sb-pn-expenses"><div id="sp-bill-expenses"></div></div>
-      <div class="bpn" id="sb-pn-savings"><div id="sp-bill-savings"></div></div>
-    </details>
-    <details class="card disc">
-      <summary>Across records<span class="chev">›</span></summary>
-      <div class="yrnav" id="sp-yr-nav"></div>
-      <div id="sp-across"></div>
-    </details>
   </div>
 </div>
 
@@ -630,6 +643,21 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
 </div></div>
 <div class="mov" id="m-exp"><div class="modal"><h2>Export data</h2><p class="mds">Includes budget, watchlist, tracker and projection data. Copy or download, then use Import on any device to restore.</p><textarea id="exp-tx" readonly></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-exp')">Close</button><button class="bsec" onclick="dlExp()">Download backup</button><button class="bprim" onclick="cpExp()">Copy to clipboard</button></div></div></div>
 <div class="mov" id="m-imp"><div class="modal"><h2>Import data</h2><p class="mds">Paste exported data, or choose a backup file, to restore. Overwrites current data.</p><input type="file" id="imp-file" accept=".json,application/json" onchange="impFileChosen(this)" style="margin-bottom:10px;font-size:12px;color:var(--mu)"><textarea id="imp-tx" placeholder="Paste here..."></textarea><div class="mbt"><button class="bsec" onclick="closeM('m-imp')">Cancel</button><button class="bprim" onclick="doImp()">Import and restore</button></div></div></div>
+<div class="mov" id="m-color"><div class="modal">
+  <h2>Category color</h2>
+  <p class="mds" id="color-cat-label"></p>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+    <div id="color-preview" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--br);flex-shrink:0"></div>
+    <div style="font-size:13px;color:var(--mu);font-family:monospace" id="color-hex"></div>
+  </div>
+  <label class="lbl">Hue</label>
+  <div class="hsb-row"><div class="hsb-caret" id="hsb-h-caret"></div><input type="range" min="0" max="360" value="0" id="hsb-h" class="hsb-slider hsb-h" oninput="hsbChanged()"></div>
+  <label class="lbl">Saturation</label>
+  <div class="hsb-row"><div class="hsb-caret" id="hsb-s-caret"></div><input type="range" min="0" max="100" value="100" id="hsb-s" class="hsb-slider" oninput="hsbChanged()"></div>
+  <label class="lbl">Brightness</label>
+  <div class="hsb-row"><div class="hsb-caret" id="hsb-b-caret"></div><input type="range" min="0" max="100" value="100" id="hsb-b" class="hsb-slider" oninput="hsbChanged()"></div>
+  <div class="mbt"><button class="bsec" onclick="closeM('m-color')">Cancel</button><button class="bprim" onclick="hsbConfirm()">Confirm</button></div>
+</div></div>
 
 <script>
 var SK='vault11';
@@ -653,6 +681,7 @@ var budgetLists={income:[],expenses:[],savings:[]};
 var baseCurrency='BHD';
 var priceApiKey='';
 var avApiKey='';
+var tabsEnabled={investing:false};
 var CUR={BHD:{code:'BHD',sym:'BD',dp:3},USD:{code:'USD',sym:'$',dp:2},
          GBP:{code:'GBP',sym:'£',dp:2},EUR:{code:'EUR',sym:'€',dp:2},
          AED:{code:'AED',sym:'AED',dp:2},SAR:{code:'SAR',sym:'SAR',dp:2},
@@ -744,7 +773,7 @@ function setBaseCurrency(code){
 // ── SAVE / LOAD ──
 function saveAll(){
   try{
-    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),living:gn('living-expense'),baseCurrency:baseCurrency,pkey:priceApiKey,avkey:avApiKey}));
+    localStorage.setItem(SK,JSON.stringify({v:11,budgetLists:budgetLists,sal:gn('main-salary'),living:gn('living-expense'),baseCurrency:baseCurrency,pkey:priceApiKey,avkey:avApiKey,tabs:tabsEnabled}));
     localStorage.setItem(WL_SK,JSON.stringify(wlData));
     localStorage.setItem(TR_SK,JSON.stringify(trData));
     localStorage.setItem(PROJ_SK,JSON.stringify(projData));
@@ -753,14 +782,14 @@ function saveAll(){
   flash();
 }
 function normExp(d){
-  var fresh={v:2,entries:[],cats:expDefaultCats.slice(),budgets:{},starts:{},payDay:26,colors:{},paidExp:{},paidSav:{}};
+  var fresh={v:2,entries:[],cats:expDefaultCats.slice(),budgets:{},starts:{},payDay:26,colors:{},paidExp:{},paidSav:{},bdWidgets:[]};
   if(!d)return fresh;
   var cats=(d.cats&&d.cats.length)?d.cats:expDefaultCats.slice();
-  if(d.v===2)return {v:2,entries:d.entries||[],cats:cats,budgets:d.budgets||{},starts:d.starts||{},payDay:d.payDay||26,colors:d.colors||{},paidExp:d.paidExp||{},paidSav:d.paidSav||{}};
+  if(d.v===2)return {v:2,entries:d.entries||[],cats:cats,budgets:d.budgets||{},starts:d.starts||{},payDay:d.payDay||26,colors:d.colors||{},paidExp:d.paidExp||{},paidSav:d.paidSav||{},bdWidgets:d.bdWidgets||[]};
   if(d.v===1){
     var b={};
     (d.budgets||[]).forEach(function(x){if(x&&x.month)b[x.month]=x.amt;});
-    return {v:2,entries:d.entries||[],cats:cats,budgets:b,starts:{},payDay:26,colors:{},paidExp:{},paidSav:{}};
+    return {v:2,entries:d.entries||[],cats:cats,budgets:b,starts:{},payDay:26,colors:{},paidExp:{},paidSav:{},bdWidgets:[]};
   }
   return fresh;
 }
@@ -772,6 +801,8 @@ function loadAll(){
     var tr=localStorage.getItem(TR_SK);if(tr)trData=JSON.parse(tr);
     var pr=localStorage.getItem(PROJ_SK);if(pr)projData=JSON.parse(pr);
     var er=localStorage.getItem(EXP_SK);if(er)expData=normExp(JSON.parse(er));
+    if(s&&s.tabs){tabsEnabled=s.tabs;}
+    else{tabsEnabled={investing:wlData.length>0||Object.keys(trData).length>0||Object.keys(projData).length>0};}
     migrateLiving();
     renderCurControls();
   }catch(e){}
@@ -972,6 +1003,67 @@ function setCatColor(cat,hex){
   expData.colors[cat]=hex;
   saveAll();spRender();
 }
+// ── HSB color picker ──
+function hsbToRgb(h,s,b){
+  s/=100;b/=100;
+  var c=b*s,x=c*(1-Math.abs((h/60)%2-1)),m=b-c,r,g,bl;
+  if(h<60){r=c;g=x;bl=0;}else if(h<120){r=x;g=c;bl=0;}
+  else if(h<180){r=0;g=c;bl=x;}else if(h<240){r=0;g=x;bl=c;}
+  else if(h<300){r=x;g=0;bl=c;}else{r=c;g=0;bl=x;}
+  return [Math.round((r+m)*255),Math.round((g+m)*255),Math.round((bl+m)*255)];
+}
+function rgbToHex(r,g,b){return '#'+[r,g,b].map(function(v){return Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0');}).join('');}
+function hexToRgb(hex){
+  hex=(hex||'#7fae86').replace('#','');
+  if(hex.length===3)hex=hex.split('').map(function(c){return c+c;}).join('');
+  var n=parseInt(hex,16)||0;
+  return [(n>>16)&255,(n>>8)&255,n&255];
+}
+function rgbToHsb(r,g,b){
+  r/=255;g/=255;b/=255;
+  var max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min,h=0;
+  if(d!==0){
+    if(max===r)h=60*(((g-b)/d)%6);
+    else if(max===g)h=60*((b-r)/d+2);
+    else h=60*((r-g)/d+4);
+  }
+  if(h<0)h+=360;
+  var s=max===0?0:d/max;
+  return [Math.round(h),Math.round(s*100),Math.round(max*100)];
+}
+function hexFromHsb(h,s,b){var rgb=hsbToRgb(h,s,b);return rgbToHex(rgb[0],rgb[1],rgb[2]);}
+function hsbCaretPos(id,frac,color){
+  var caret=el(id+'-caret');if(!caret)return;
+  caret.style.left=(frac*100)+'%';
+  caret.style.borderTopColor=color;
+}
+function hsbChanged(){
+  var h=parseInt(el('hsb-h').value),s=parseInt(el('hsb-s').value),b=parseInt(el('hsb-b').value);
+  var hex=hexFromHsb(h,s,b);
+  el('color-preview').style.background=hex;
+  el('color-hex').textContent=hex.toUpperCase();
+  el('hsb-s').style.background='linear-gradient(to right,'+hexFromHsb(h,0,b)+','+hexFromHsb(h,100,b)+')';
+  el('hsb-b').style.background='linear-gradient(to right,'+hexFromHsb(h,s,0)+','+hexFromHsb(h,s,100)+')';
+  hsbCaretPos('hsb-h',h/360,hexFromHsb(h,100,100));
+  hsbCaretPos('hsb-s',s/100,hex);
+  hsbCaretPos('hsb-b',b/100,hex);
+}
+var colorEditingCat=null;
+function openColorPicker(cat){
+  colorEditingCat=cat;
+  el('color-cat-label').textContent='Choose a custom color for "'+cat+'"';
+  var rgb=hexToRgb(catColor(cat));
+  var hsb=rgbToHsb(rgb[0],rgb[1],rgb[2]);
+  el('hsb-h').value=hsb[0];el('hsb-s').value=hsb[1];el('hsb-b').value=hsb[2];
+  hsbChanged();
+  el('m-color').classList.add('on');
+}
+function hsbConfirm(){
+  var hex=el('color-hex').textContent;
+  if(colorEditingCat)setCatColor(colorEditingCat,hex.toLowerCase());
+  colorEditingCat=null;
+  closeM('m-color');
+}
 function renameCat(oldName,v){
   var name=(v||'').trim();
   if(!name||name===oldName)return spRenderChips();
@@ -994,7 +1086,7 @@ var spEditingId=null;
 function spGoRec(delta){
   var list=recList(),i=list.indexOf(spRecKey);
   var ni=i+delta;if(ni<0||ni>=list.length)return;
-  spRecKey=list[ni];spQuickOpen=false;spEditingId=null;
+  spRecKey=list[ni];spQuickOpen=false;spEditingId=null;spFocusCat=null;
   spRender();
   var pn=el('sp-body');if(pn)slideTo(pn,delta);
 }
@@ -1093,11 +1185,8 @@ function spRenderChips(){
   box.className='';
   ht('sp-cat-chips',ordered.map(function(c){
     var cur=catColor(c);
-    var sw=CAT_SWATCH.map(function(hex){
-      return '<button class="sw'+(hex===cur?' on':'')+'" style="background:'+hex+'" title="'+hex+'" onclick="setCatColor(\''+esc(c).replace(/'/g,"\\'")+'\',\''+hex+'\')"></button>';
-    }).join('');
     return '<div class="maprow"><input class="finp mapname" value="'+esc(c)+'" onchange="renameCat(\''+esc(c).replace(/'/g,"\\'")+'\',this.value)">'
-      +'<div class="swrow">'+sw+'</div>'
+      +'<button type="button" class="sw-open" style="background:'+cur+'" title="Choose color" onclick="openColorPicker(\''+esc(c).replace(/'/g,"\\'")+'\')"></button>'
       +'<button class="xb sp-chip-del" data-cat="'+esc(c)+'" title="Remove category">\u2715</button></div>';
   }).join('')
   +'<div class="chip-add" style="margin-top:10px"><input type="text" id="sp-new-cat" placeholder="New category" onkeydown="if(event.key===\'Enter\'){event.preventDefault();spAddCat();}"><button type="button" class="btn" onclick="spAddCat()">Add</button></div>');
@@ -1214,7 +1303,7 @@ function spRender(){
   var list=recList();
   if(!spRecKey||list.indexOf(spRecKey)===-1)spRecKey=recCurKey();
   spRenderNav();spRenderHead();spRenderQuick();
-  spRenderEntries();spRenderAcross();spRenderBills();
+  spRenderEntries();spRenderAcross();spRenderBills();spRenderBreakdown();
 }
 function spInit(){spRender();}
 
@@ -1255,6 +1344,113 @@ function spRenderBillList(kind){
   ht(target,summary+rows);
 }
 function spRenderBills(){spRenderBillList('exp');spRenderBillList('sav');}
+
+// ── SPENDING — interactive breakdown (per record) ──
+var spFocusCat=null;
+var BD_DEFAULT=[{id:'byCategory',visible:true},{id:'byDay',visible:true},{id:'ranked',visible:true}];
+var BD_TITLES={byCategory:'By category',byDay:'By day',ranked:'Ranked list'};
+function spBdWidgets(){
+  if(!expData.bdWidgets||!expData.bdWidgets.length)expData.bdWidgets=BD_DEFAULT.map(function(w){return {id:w.id,visible:w.visible};});
+  return expData.bdWidgets;
+}
+function spBdToggle(id){
+  var w=spBdWidgets().find(function(x){return x.id===id;});
+  if(w){w.visible=!w.visible;saveAll();spRenderBreakdown();}
+}
+function spBdMove(id,dir){
+  var list=spBdWidgets();
+  var i=list.findIndex(function(x){return x.id===id;});
+  var ni=i+dir;
+  if(ni<0||ni>=list.length)return;
+  var tmp=list[i];list[i]=list[ni];list[ni]=tmp;
+  saveAll();spRenderBreakdown();
+}
+function spFocusCategory(cat){
+  spFocusCat=(cat===null)?null:(spFocusCat===cat?null:cat);
+  spRenderBreakdown();
+}
+function spBdControlsHtml(){
+  var list=spBdWidgets();
+  return '<div class="card" style="margin-bottom:10px"><div class="ct" style="margin-bottom:6px">Widgets</div>'
+    +list.map(function(w,i){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0'+(i<list.length-1?';border-bottom:1px solid var(--br)':'')+'">'
+        +'<span style="font-size:12px;color:var(--tx)">'+BD_TITLES[w.id]+'</span>'
+        +'<div style="display:flex;align-items:center;gap:4px">'
+        +'<button type="button" class="xb" onclick="spBdMove(\''+w.id+'\',-1)" title="Move up"'+(i===0?' disabled':'')+'>&#8593;</button>'
+        +'<button type="button" class="xb" onclick="spBdMove(\''+w.id+'\',1)" title="Move down"'+(i===list.length-1?' disabled':'')+'>&#8595;</button>'
+        +'<button type="button" class="tgl-btn '+(w.visible?'tgl-track-on':'tgl-track-off')+'" onclick="spBdToggle(\''+w.id+'\')">'+(w.visible?'Shown':'Hidden')+'</button>'
+        +'</div></div>';
+    }).join('')
+    +'</div>';
+}
+function spBdByCategoryHtml(cats,totals){
+  return '<div class="card" style="margin-bottom:10px"><div class="ct">By category'+(spFocusCat?' \u2014 focus: '+esc(spFocusCat):'')+'</div>'
+    +'<div class="cw cw-sm"><canvas id="chart-bd-cat"></canvas></div>'
+    +'<div class="chip-row" style="margin-top:8px">'+cats.map(function(c){
+      return '<span class="chip'+(c===spFocusCat?' on':'')+'" onclick="spFocusCategory(\''+esc(c).replace(/'/g,"\\'")+'\')"><i class="cdot" style="background:'+catColor(c)+'"></i>'+esc(c)+' '+fmtMoney(totals[c],{dp:0})+'</span>';
+    }).join('')+'</div></div>';
+}
+function spBdRenderCategoryChart(cats,totals){
+  var data=cats.map(function(c){return totals[c];});
+  var colors=cats.map(function(c){return catColor(c);});
+  mkC('chart-bd-cat',{type:'doughnut',data:{labels:cats,datasets:[{data:data,backgroundColor:colors,borderColor:isDk()?'#191b1e':'#e6e6e3',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      onClick:function(evt,els){if(els&&els.length)spFocusCategory(cats[els[0].index]);},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:isDk()?'#15171a':'#fff',borderColor:isDk()?'#31353b':'#d2d2cd',borderWidth:1,bodyColor:isDk()?'#e5e7ea':'#1b1d20',callbacks:{label:function(c){return c.label+': '+fmtMoney(c.raw);}}}}}});
+}
+function spBdByDayHtml(){
+  return '<div class="card" style="margin-bottom:10px"><div class="ct">By day'+(spFocusCat?' \u2014 '+esc(spFocusCat)+' <button type="button" class="btn" style="font-size:10px;margin-left:6px" onclick="spFocusCategory(null)">Clear</button>':'')+'</div>'
+    +'<div class="cw cw-sm"><canvas id="chart-bd-day"></canvas></div></div>';
+}
+function spBdRenderDayChart(entries){
+  var filtered=spFocusCat?entries.filter(function(e){return e.cat===spFocusCat;}):entries;
+  var byDay={};
+  filtered.forEach(function(e){byDay[e.date]=(byDay[e.date]||0)+e.amt;});
+  var days=Object.keys(byDay).sort();
+  var labels=days.map(function(d){return fmtDay(d);});
+  var data=days.map(function(d){return byDay[d];});
+  var color=spFocusCat?catColor(spFocusCat):(isDk()?'#7fae86':'#4a7a55');
+  mkC('chart-bd-day',{type:'bar',data:{labels:labels,datasets:[{data:data,backgroundColor:color,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:isDk()?'#15171a':'#fff',borderColor:isDk()?'#31353b':'#d2d2cd',borderWidth:1,bodyColor:isDk()?'#e5e7ea':'#1b1d20',callbacks:{label:function(c){return fmtMoney(c.raw);}}}},
+      scales:{x:{ticks:tc(),grid:{display:false}},y:{ticks:Object.assign({},tc(),{callback:function(v){return fmtMoney(v,{short:true});}}),grid:{color:gc()}}}}});
+}
+function spBdRankedHtml(cats,totals){
+  var total=cats.reduce(function(s,c){return s+totals[c];},0);
+  var rows=cats.map(function(c){
+    var pct=total>0?(totals[c]/total*100):0;
+    return '<div class="arow'+(c===spFocusCat?' cur':'')+'" onclick="spFocusCategory(\''+esc(c).replace(/'/g,"\\'")+'\')">'
+      +'<div class="arow-lab"><i class="cdot" style="background:'+catColor(c)+'"></i>'+esc(c)+'</div>'
+      +'<div class="bt"><div class="bf" style="width:'+pct.toFixed(1)+'%;background:'+catColor(c)+'"></div></div>'
+      +'<div class="arow-tot">'+fmtMoney(totals[c],{dp:0})+'</div>'
+      +'<div class="arow-var">'+pct.toFixed(0)+'%</div></div>';
+  }).join('');
+  return '<div class="card"><div class="ct">Ranked list</div>'+rows+'</div>';
+}
+function spRenderBreakdown(){
+  var disc=el('sp-bd-disc');
+  if(disc&&!disc.open)return;
+  var entries=recEntries(spRecKey);
+  var totals=recTotals(spRecKey);
+  var cats=Object.keys(totals).sort(function(a,b){return totals[b]-totals[a];});
+  if(spFocusCat&&cats.indexOf(spFocusCat)===-1)spFocusCat=null;
+  var html=spBdControlsHtml();
+  if(!entries.length){
+    ht('sp-breakdown',html+'<div class="muted-note">No entries in this record yet.</div>');
+    return;
+  }
+  spBdWidgets().forEach(function(w){
+    if(!w.visible)return;
+    if(w.id==='byCategory')html+=spBdByCategoryHtml(cats,totals);
+    else if(w.id==='byDay')html+=spBdByDayHtml();
+    else if(w.id==='ranked')html+=spBdRankedHtml(cats,totals);
+  });
+  ht('sp-breakdown',html);
+  spBdWidgets().forEach(function(w){
+    if(!w.visible)return;
+    if(w.id==='byCategory')spBdRenderCategoryChart(cats,totals);
+    else if(w.id==='byDay')spBdRenderDayChart(entries);
+  });
+}
 
 
 // INVESTING
@@ -1992,19 +2188,57 @@ function doReset(){if(confirm('Reset all data? This cannot be undone.')){[SK,WL_
 function closeM(id){el(id).classList.remove('on');}
 
 // ── TABS ──
-el('mt').addEventListener('click',function(e){
-  var btn=e.target.closest('.tab');if(!btn||!btn.dataset.t)return;
+function switchMainTab(key){
   var btns=[].slice.call(document.querySelectorAll('#mt .tab'));
+  var targetBtn=btns.find(function(b){return b.dataset.t===key;});
+  if(!targetBtn||targetBtn.style.display==='none')targetBtn=btns.find(function(b){return b.dataset.t==='budget';});
+  if(!targetBtn)return;
   var from=btns.findIndex(function(b){return b.classList.contains('on');});
-  var to=btns.indexOf(btn);
-  if(to===from)return;
+  var to=btns.indexOf(targetBtn);
   btns.forEach(function(b){b.classList.remove('on');});
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
-  btn.classList.add('on');
-  var pn=el('tab-'+btn.dataset.t);pn.classList.add('on');
-  if(btn.dataset.t==='spending'){spInit();}
-  if(btn.dataset.t==='investing'){ivSetView(ivActiveView);}
-  slideTo(pn,to-from);
+  targetBtn.classList.add('on');
+  var pn=el('tab-'+targetBtn.dataset.t);pn.classList.add('on');
+  if(targetBtn.dataset.t==='investing'){ivSetView(ivActiveView);}
+  if(to!==from)slideTo(pn,to-from);
+}
+function renderTabsBar(){
+  var investBtn=el('tab-btn-investing');
+  var addBtn=el('tab-add-investing');
+  if(tabsEnabled.investing){
+    investBtn.style.display='';
+    addBtn.style.display='none';
+  }else{
+    investBtn.style.display='none';
+    addBtn.style.display='';
+    if(investBtn.classList.contains('on'))switchMainTab('budget');
+  }
+}
+function tabsAddInvesting(){
+  tabsEnabled.investing=true;
+  saveAll();
+  renderTabsBar();
+  switchMainTab('investing');
+}
+function tabsRemoveInvesting(){
+  if(!confirm('Hide the Investing tab? Your Tracker, Projection and Watchlist data stays saved — tap + to bring it back anytime.'))return;
+  tabsEnabled.investing=false;
+  saveAll();
+  switchMainTab('budget');
+  renderTabsBar();
+}
+(function(){
+  var btn=el('tab-btn-investing'),timer=null,fired=false;
+  function start(){fired=false;timer=setTimeout(function(){fired=true;tabsRemoveInvesting();},650);}
+  function cancel(){clearTimeout(timer);}
+  btn.addEventListener('mousedown',start);
+  btn.addEventListener('touchstart',start,{passive:true});
+  ['mouseup','mouseleave','touchend','touchcancel','touchmove'].forEach(function(ev){btn.addEventListener(ev,cancel);});
+  btn.addEventListener('click',function(e){if(fired){e.preventDefault();e.stopPropagation();fired=false;return;}switchMainTab('investing');});
+})();
+el('mt').addEventListener('click',function(e){
+  var btn=e.target.closest('.tab');if(!btn||!btn.dataset.t||btn.id==='tab-btn-investing')return;
+  switchMainTab(btn.dataset.t);
 });
 el('iv-views').addEventListener('click',function(e){
   var btn=e.target.closest('.btab');if(!btn||!btn.dataset.iv)return;
@@ -2022,13 +2256,13 @@ el('sp-bill-tabs').addEventListener('click',function(e){
   var pn=el('sb-pn-'+btn.dataset.sb);pn.classList.add('on');
   slideTo(pn,to-from);
 });
-el('tab-spending').addEventListener('click',function(e){
+el('bp-spending').addEventListener('click',function(e){
   var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
   var chip=e.target.closest('.sp-chip');if(chip){spSelectedCat=chip.dataset.cat;spRenderChips();return;}
   var editEntry=e.target.closest('[data-sp-edit]');if(editEntry){spEditEntry(editEntry.dataset.id);return;}
   var delEntry=e.target.closest('[data-sp-del]');if(delEntry){spDeleteEntry(delEntry.dataset.id);return;}
 });
-el('tab-spending').addEventListener('keydown',function(e){
+el('bp-spending').addEventListener('keydown',function(e){
   if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('sp-chip')){e.preventDefault();e.target.click();}
 });
 document.querySelectorAll('.btabs').forEach(function(g){
@@ -2042,13 +2276,14 @@ document.querySelectorAll('.btabs').forEach(function(g){
     document.querySelectorAll('#tab-budget .bpn').forEach(function(p){p.classList.remove('on');});
     btn.classList.add('on');
     var pn=el('bp-'+btn.dataset.b);pn.classList.add('on');
+    if(btn.dataset.b==='spending')spInit();
     slideTo(pn,to-from);
   });
 });
 document.querySelectorAll('.mov').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('on');});});
 el('main-salary').addEventListener('input',recalcBudget);
 el('living-expense').addEventListener('input',function(){recalcBudget();spRender();});
-el('tab-spending').addEventListener('change',function(e){
+el('bp-spending').addEventListener('change',function(e){
   if(e.target&&e.target.id==='sp-date'){spRenderQuick();}
 });
 
@@ -2061,6 +2296,8 @@ wlLoad();
 wlRender();
 renderFXBar();
 recalcBudget();
+renderTabsBar();
+spInit();
 
 var _vNarrow=window.innerWidth<600;
 window.addEventListener('resize',function(){
