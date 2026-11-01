@@ -208,6 +208,9 @@ select.sinp{background:var(--inp-bg);border:1px solid var(--inp-b);border-radius
 .hero2-nav{display:flex;align-items:center;justify-content:space-between}
 .nvb2{all:unset;box-sizing:border-box;width:36px;height:36px;border-radius:10px;color:var(--mu);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .nvb2[disabled]{opacity:.35;cursor:default}
+.seg2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:var(--inp-bg);border-radius:10px;padding:3px;width:132px}
+.seg2-btn{all:unset;box-sizing:border-box;text-align:center;padding:6px 0;border-radius:8px;font-size:12px;font-weight:500;color:var(--mu);cursor:pointer}
+.seg2-btn.on{background:var(--sf);color:var(--tx);font-weight:600}
 .stats3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:12px;border-top:1px solid var(--br)}
 .stat3{display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat3-lab{font-size:11px;color:var(--mu)}
@@ -291,7 +294,7 @@ input.mapname{font-size:12.5px;padding:6px 8px;min-width:0}
 .hsb-slider::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--sf);box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:pointer}
 .hsb-h{background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
 /* ── pill sub-nav (replaces segmented .btabs look) ── */
-.pillnav{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 12px;padding:0 16px 2px;scrollbar-width:none}
+.pillnav{display:flex;justify-content:safe center;gap:6px;overflow-x:auto;margin:0 -16px 12px;padding:0 16px 2px;scrollbar-width:none}
 .pillnav::-webkit-scrollbar{display:none}
 .pill{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:999px;color:var(--mu);font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex-shrink:0}
 .pill.on{background:var(--gr-bg);color:var(--gr-tx);font-weight:600}
@@ -599,6 +602,12 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   </div>
   <div class="bpn on" id="iv-pn-tracker">
   <div class="btabs pillnav" id="tr-chips"></div>
+  <div style="display:flex;justify-content:flex-end;margin:-4px 0 10px">
+    <div class="seg2">
+      <button type="button" class="seg2-btn" id="tr-cur-base-btn" onclick="trSetViewCur('BASE')">BHD</button>
+      <button type="button" class="seg2-btn" id="tr-cur-usd-btn" onclick="trSetViewCur('USD')">USD</button>
+    </div>
+  </div>
   <div id="tr-empty" class="empty-state">
     Enable <strong style="color:var(--bl-tx)">Track</strong> on a stock in the Watchlist tab to start tracking it here.
   </div>
@@ -620,6 +629,12 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   </div>
   <div class="bpn" id="iv-pn-projection">
   <div class="btabs pillnav" id="proj-chips"></div>
+  <div style="display:flex;justify-content:flex-end;margin:-4px 0 10px">
+    <div class="seg2">
+      <button type="button" class="seg2-btn" id="proj-cur-base-btn" onclick="projSetViewCur('BASE')">BHD</button>
+      <button type="button" class="seg2-btn" id="proj-cur-usd-btn" onclick="projSetViewCur('USD')">USD</button>
+    </div>
+  </div>
   <div id="proj-empty" class="empty-state">
     Enable <strong style="color:var(--gr-tx)">Project</strong> on a stock in the Watchlist tab to project it here.
   </div>
@@ -784,6 +799,15 @@ var CUR={BHD:{code:'BHD',sym:'BD',dp:3},USD:{code:'USD',sym:'$',dp:2},
 var fxData={rates:{USD:0.376,GBP:0.472,EUR:0.408,AED:0.1023,SAR:0.1003,KWD:1.222,OMR:0.978,QAR:0.1033},inflation:2.5,status:null,lastUpdated:null};
 var trKey='';
 var projKey='';
+var projViewCur='BASE';
+function projDispCur(){return projViewCur==='USD'?'USD':baseCurrency;}
+function projDisp(v){return projViewCur==='USD'?fromBase(v,'USD'):v;}
+function projSyncCurToggle(){
+  var b=el('proj-cur-base-btn'),u=el('proj-cur-usd-btn');
+  if(b){b.textContent=baseCurrency;b.classList.toggle('on',projViewCur==='BASE');}
+  if(u)u.classList.toggle('on',projViewCur==='USD');
+}
+function projSetViewCur(c){projViewCur=c;projSyncCurToggle();renderProjStock();renderProjOverview();}
 
 function el(id){return document.getElementById(id);}
 function slideTo(panel,dir){
@@ -1597,6 +1621,15 @@ function ivSetView(v){
 // TRACKER
 function trStockItems(){return wlData.filter(function(w){return w.track;});}
 var trSelYear=null;
+var trViewCur='BASE';
+function trDispCur(){return trViewCur==='USD'?'USD':baseCurrency;}
+function trDisp(v){return trViewCur==='USD'?fromBase(v,'USD'):v;}
+function trSyncCurToggle(){
+  var b=el('tr-cur-base-btn'),u=el('tr-cur-usd-btn');
+  if(b){b.textContent=baseCurrency;b.classList.toggle('on',trViewCur==='BASE');}
+  if(u)u.classList.toggle('on',trViewCur==='USD');
+}
+function trSetViewCur(c){trViewCur=c;trSyncCurToggle();renderTr();}
 function trEnsureYear(key,yr){
   if(!trData[key])trData[key]={years:[]};
   if(!trData[key].years.find(function(y){return y.year===yr;})){trData[key].years.push({year:yr,entries:[]});trData[key].years.sort(function(a,b){return a.year-b.year;});}
@@ -1625,6 +1658,7 @@ function trSelectStock(){
   if(!hasKey)return;
   if(trSelYear==null)trSelYear=new Date().getFullYear();
   trEnsureYear(trKey,trSelYear);
+  trSyncCurToggle();
   renderTr();
 }
 function trGoYear(delta){
@@ -1678,7 +1712,7 @@ function renderTr(){
   }
   var cutoff=sy<cy?11:(sy>cy?-1:(cm-1));
   el('tr-hero-lab').textContent='Invested through '+(cutoff>=0?MN[cutoff]:'\u2014');
-  ht('tr-hero-fig',heroFigHtml(cumBHD));
+  ht('tr-hero-fig',heroFigHtml(trDisp(cumBHD),{cur:trDispCur()}));
   var W=326,H=100,max=Math.max(cumProj,1);
   var ptsAll=[];for(var mi=0;mi<12;mi++)ptsAll.push({x:mi/11*W,y:H-(cProjArr[mi]/max*H)});
   var solidPts=cutoff>=0?ptsAll.slice(0,cutoff+1):[];
@@ -1692,14 +1726,14 @@ function renderTr(){
   var yi=trData[trKey].years.findIndex(function(y){return y.year===sy;})+1;
   ht('tr-stats','<div class="stat3"><div class="stat3-lab">Recorded</div><div class="stat3-val">'+recs+' / 12</div></div>'
     +'<div class="stat3"><div class="stat3-lab">Year</div><div class="stat3-val">'+yi+' of '+trData[trKey].years.length+'</div></div>'
-    +'<div class="stat3"><div class="stat3-lab">Year-end</div><div class="stat3-val" style="color:var(--mu)">'+fmtMoney(cumProj)+'</div></div>');
+    +'<div class="stat3"><div class="stat3-lab">Year-end</div><div class="stat3-val" style="color:var(--mu)">'+fmtMoney(trDisp(cumProj),{cur:trDispCur()})+'</div></div>');
   var grid='';
   for(var m2=1;m2<=12;m2++){
     var rec2=yObj?yObj.entries.find(function(e){return e.month===m2;}):null;
     var isCur2=sy===cy&&m2===cm;
     var isFuture2=sy>cy||(sy===cy&&m2>cm);
     var has=!!rec2;
-    var amtTxt=has?fmtMoney(rec2.amtBHD,{dp:0}):'\u2014';
+    var amtTxt=has?fmtMoney(trDisp(rec2.amtBHD),{dp:0,cur:trDispCur()}):'\u2014';
     var tag=has?(rec2.amtBHD===0?'Zero':'Recorded')+(isCur2?' \u00b7 this month':''):(isFuture2?'Future':(trGetEff(sy,m2)>0?'Carried':'\u2014'));
     grid+='<button type="button" class="month-tile'+(isFuture2?' fut':'')+(isCur2?' cur':'')+'" onclick="trOpenMonth('+sy+','+m2+')">'
       +'<span class="month-tile-lab">'+MN[m2-1].slice(0,3)+'</span>'
@@ -1714,12 +1748,13 @@ function trOpenMonth(yr,mo){
   var yObj=trData[trKey].years.find(function(y){return y.year===yr;});
   var rec=yObj?yObj.entries.find(function(e){return e.month===mo;}):null;
   el('tr-month-title').textContent=MN[mo-1]+' '+yr;
-  el('tr-month-cur').textContent=baseCurrency;
+  el('tr-month-cur').textContent=trDispCur();
+  var dp=(CUR[trDispCur()]||CUR.BHD).dp;
   var amtInp=el('tr-month-amt');
-  amtInp.value=rec?rec.amtBHD:'';
-  amtInp.placeholder=fmtMoney(trGetEff(yr,mo),{dp:0});
+  amtInp.value=rec?parseFloat(trDisp(rec.amtBHD).toFixed(dp)):'';
+  amtInp.placeholder=fmtMoney(trDisp(trGetEff(yr,mo)),{dp:0,cur:trDispCur()});
   el('tr-month-clear-btn').style.display=rec?'':'none';
-  el('tr-month-hint').textContent=rec?'':'No record \u2014 carries forward '+fmtMoney(trGetEff(yr,mo))+' unless you set a value.';
+  el('tr-month-hint').textContent=rec?'':'No record \u2014 carries forward '+fmtMoney(trDisp(trGetEff(yr,mo)),{cur:trDispCur()})+' unless you set a value.';
   el('m-trmonth').classList.add('on');
   setTimeout(function(){if(amtInp)amtInp.focus();},50);
 }
@@ -1727,7 +1762,8 @@ function trMonthSave(){
   if(!trMonthEdit)return;
   var v=parseFloat(el('tr-month-amt').value);
   if(el('tr-month-amt').value===''||isNaN(v)||v<0){closeM('m-trmonth');return;}
-  trSetEntry(trMonthEdit.yr,trMonthEdit.mo,v);
+  var baseAmt=toBase(v,trDispCur());
+  trSetEntry(trMonthEdit.yr,trMonthEdit.mo,parseFloat(baseAmt.toFixed(2)));
   closeM('m-trmonth');
   renderTr();
 }
@@ -1748,6 +1784,7 @@ function projRefreshDropdown(){
     var k=sKey(it);
     return '<button type="button" class="btab pill'+(k===projKey?' on':'')+'" onclick="projPickStock(\''+k.replace(/'/g,"\\'")+'\')">'+esc(it.sym)+'</button>';
   }).join('');
+  projSyncCurToggle();
   renderProjStock();renderProjOverview();
 }
 function projPickStock(key){projKey=key;projRefreshDropdown();}
@@ -1797,15 +1834,16 @@ function renderProjStock(){
   var svg='<path d="'+svgAreaPath(line,H)+'" fill="'+grvFill+'"></path>'
     +'<path d="'+svgLinePath(line)+'" stroke="'+grv+'" stroke-width="2.5" fill="none" vector-effect="non-scaling-stroke"></path>'
     +'<path d="'+svgLinePath(cl)+'" stroke="var(--dm)" stroke-width="1.5" stroke-dasharray="4 4" fill="none" vector-effect="non-scaling-stroke"></path>';
+  var dCur=projDispCur();
   var html='<div class="hero2" style="margin-bottom:10px">'
     +'<div class="hero2-lab"><span>In '+horizYrs+' year'+(horizYrs>1?'s':'')+'</span></div>'
-    +'<div class="hero2-fig">'+heroFigHtml(end,{color:'var(--gr-v)'})+'</div>'
-    +'<div class="hero2-sub"><span>'+fmtMoney(put,{dp:0})+' put in</span><span>+'+fmtMoney(Math.max(0,end-put),{dp:0})+' growth</span></div>'
+    +'<div class="hero2-fig">'+heroFigHtml(projDisp(end),{color:'var(--gr-v)',cur:dCur})+'</div>'
+    +'<div class="hero2-sub"><span>'+fmtMoney(projDisp(put),{dp:0,cur:dCur})+' put in</span><span>+'+fmtMoney(projDisp(Math.max(0,end-put)),{dp:0,cur:dCur})+' growth</span></div>'
     +'<svg width="100%" height="110" viewBox="0 -4 326 128" preserveAspectRatio="none" role="img" aria-label="Projected value growing over the horizon">'+svg+'</svg>'
     +'<div class="area-legend"><span><span style="width:14px;height:2px;background:'+grv+';display:inline-block"></span>Projected value</span><span><span style="width:14px;height:0;border-top:2px dashed var(--dm);display:inline-block"></span>Put in</span></div>'
     +'</div>'
     +'<div class="tile3-row">'
-      +'<label class="tile3"><span class="tile3-lab">Monthly ('+baseCurrency+')</span><input type="number" id="proj-monthly" value="'+parseFloat(monthly.toFixed(2))+'" min="0" step="10" onchange="projUpdateMonthly(this)"></label>'
+      +'<label class="tile3"><span class="tile3-lab">Monthly ('+dCur+')</span><input type="number" id="proj-monthly" value="'+parseFloat(projDisp(monthly).toFixed((CUR[dCur]||CUR.BHD).dp))+'" min="0" step="10" onchange="projUpdateMonthly(this)"></label>'
       +'<label class="tile3"><span class="tile3-lab">Return %</span><input type="number" id="proj-rate" value="'+rate+'" min="0" max="50" step="0.1" onchange="projUpdateRate(this)"></label>'
       +'<label class="tile3"><span class="tile3-lab">Years</span><input type="number" id="proj-yrs" value="'+horizYrs+'" min="1" max="50" step="1" onchange="projUpdateYears(this)"></label>'
     +'</div>'
@@ -1820,18 +1858,20 @@ function projRenderStockTable(pd,horizYrs,monthly,rate){
   if(horizYrs<=6){for(var y=1;y<=horizYrs;y++)years.push(y);}
   else{for(var y2=5;y2<=horizYrs;y2+=5)years.push(y2);if(years[years.length-1]!==horizYrs)years.push(horizYrs);years.unshift(1);}
   var now=new Date().getFullYear();
+  var dCur=projDispCur();
   var html='<div class="proj-tbl-head"><span>Year</span><span style="text-align:right">Put in</span><span style="text-align:right">Value</span></div>';
   years.forEach(function(y){
     var proj=fv(rate/100,y,monthly);var contrib=monthly*y*12;
     html+='<div class="proj-tbl-row"><span>'+(now+y)+' · yr '+y+'</span>'
-      +'<span style="text-align:right;color:var(--mu)">'+fmtMoney(contrib,{dp:0})+'</span>'
-      +'<span style="text-align:right;font-weight:600;color:var(--gr-v)">'+fmtMoney(proj,{dp:0})+'</span></div>';
+      +'<span style="text-align:right;color:var(--mu)">'+fmtMoney(projDisp(contrib),{dp:0,cur:dCur})+'</span>'
+      +'<span style="text-align:right;font-weight:600;color:var(--gr-v)">'+fmtMoney(projDisp(proj),{dp:0,cur:dCur})+'</span></div>';
   });
   ht('proj-stock-tbl',html);
 }
 function projUpdateMonthly(inp){
   if(!projKey||!projData[projKey])return;
-  projData[projKey].monthlyBHD=parseFloat(inp.value)||0;
+  var raw=parseFloat(inp.value)||0;
+  projData[projKey].monthlyBHD=parseFloat(toBase(raw,projDispCur()).toFixed(2));
   saveAll();renderProjStock();renderProjOverview();
 }
 function projUpdateRate(inp){
@@ -1857,10 +1897,11 @@ function renderProjOverview(){
     allEnd+=fv(rate/100,years,monthly);allM+=monthly;
   });
   var syms=stocks.map(function(it){return it.sym;}).join(' + ');
+  var dCur=projDispCur();
   ht('proj-overview','<div class="proj-combined">'
     +'<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px">All projections in '+years+' year'+(years>1?'s':'')+'</span>'
-    +'<span class="fig-caption">'+esc(syms)+' \u00b7 '+fmtMoney(allM,{dp:0})+' / month</span></span>'
-    +'<span style="font-size:17px;font-weight:600;color:var(--bl-v);white-space:nowrap">'+fmtMoney(allEnd,{dp:0})+'</span></div>');
+    +'<span class="fig-caption">'+esc(syms)+' \u00b7 '+fmtMoney(projDisp(allM),{dp:0,cur:dCur})+' / month</span></span>'
+    +'<span style="font-size:17px;font-weight:600;color:var(--bl-v);white-space:nowrap">'+fmtMoney(projDisp(allEnd),{dp:0,cur:dCur})+'</span></div>');
 }
 
 // ── WATCHLIST ──
