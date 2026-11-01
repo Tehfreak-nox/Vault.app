@@ -294,7 +294,7 @@ input.mapname{font-size:12.5px;padding:6px 8px;min-width:0}
 .hsb-slider::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--sf);box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:pointer}
 .hsb-h{background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
 /* ── pill sub-nav (replaces segmented .btabs look) ── */
-.pillnav{display:flex;justify-content:safe center;gap:6px;overflow-x:auto;margin:0 -16px 12px;padding:0 16px 2px;scrollbar-width:none}
+.pillnav{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;margin:0 auto 12px;max-width:100%;padding-bottom:2px;scrollbar-width:none}
 .pillnav::-webkit-scrollbar{display:none}
 .pill{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:999px;color:var(--mu);font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex-shrink:0}
 .pill.on{background:var(--gr-bg);color:var(--gr-tx);font-weight:600}
@@ -390,7 +390,7 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   .top-r{flex-wrap:nowrap}
   .tabs{width:100%;flex-wrap:nowrap}
   .tabs .tab{flex:1;padding:8px 4px;font-size:12.5px}
-  .btabs{width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .btabs:not(.pillnav){width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .btabs::-webkit-scrollbar{display:none}
   .btab{flex:0 0 auto}
   .card{padding:13px 14px}
@@ -602,12 +602,6 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   </div>
   <div class="bpn on" id="iv-pn-tracker">
   <div class="btabs pillnav" id="tr-chips"></div>
-  <div style="display:flex;justify-content:flex-end;margin:-4px 0 10px">
-    <div class="seg2">
-      <button type="button" class="seg2-btn" id="tr-cur-base-btn" onclick="trSetViewCur('BASE')">BHD</button>
-      <button type="button" class="seg2-btn" id="tr-cur-usd-btn" onclick="trSetViewCur('USD')">USD</button>
-    </div>
-  </div>
   <div id="tr-empty" class="empty-state">
     Enable <strong style="color:var(--bl-tx)">Track</strong> on a stock in the Watchlist tab to start tracking it here.
   </div>
@@ -629,12 +623,6 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   </div>
   <div class="bpn" id="iv-pn-projection">
   <div class="btabs pillnav" id="proj-chips"></div>
-  <div style="display:flex;justify-content:flex-end;margin:-4px 0 10px">
-    <div class="seg2">
-      <button type="button" class="seg2-btn" id="proj-cur-base-btn" onclick="projSetViewCur('BASE')">BHD</button>
-      <button type="button" class="seg2-btn" id="proj-cur-usd-btn" onclick="projSetViewCur('USD')">USD</button>
-    </div>
-  </div>
   <div id="proj-empty" class="empty-state">
     Enable <strong style="color:var(--gr-tx)">Project</strong> on a stock in the Watchlist tab to project it here.
   </div>
@@ -732,7 +720,13 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   <div class="mbt"><button class="bsec" onclick="closeAddSheet()">Cancel</button><button class="bprim" id="sp-submit-btn" onclick="spAddEntry()">Add</button></div>
 </div></div>
 <div class="mov" id="m-trmonth"><div class="modal">
-  <h2 id="tr-month-title">Record month</h2>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px">
+    <h2 id="tr-month-title" style="margin:0">Record month</h2>
+    <div class="seg2" style="width:112px">
+      <button type="button" class="seg2-btn" id="tr-month-cur-base-btn" onclick="trModalSetCur('BASE')">BHD</button>
+      <button type="button" class="seg2-btn" id="tr-month-cur-usd-btn" onclick="trModalSetCur('USD')">USD</button>
+    </div>
+  </div>
   <label class="lbl">Amount (<span id="tr-month-cur"></span>)</label>
   <input class="rinp" type="number" id="tr-month-amt" min="0" step="10" style="width:100%;margin-bottom:6px" onkeydown="if(event.key==='Enter'){event.preventDefault();trMonthSave();}">
   <p class="fig-caption" id="tr-month-hint" style="margin-bottom:16px"></p>
@@ -802,12 +796,7 @@ var projKey='';
 var projViewCur='BASE';
 function projDispCur(){return projViewCur==='USD'?'USD':baseCurrency;}
 function projDisp(v){return projViewCur==='USD'?fromBase(v,'USD'):v;}
-function projSyncCurToggle(){
-  var b=el('proj-cur-base-btn'),u=el('proj-cur-usd-btn');
-  if(b){b.textContent=baseCurrency;b.classList.toggle('on',projViewCur==='BASE');}
-  if(u)u.classList.toggle('on',projViewCur==='USD');
-}
-function projSetViewCur(c){projViewCur=c;projSyncCurToggle();renderProjStock();renderProjOverview();}
+function projSetViewCur(c){projViewCur=c;renderProjStock();renderProjOverview();}
 
 function el(id){return document.getElementById(id);}
 function slideTo(panel,dir){
@@ -1625,11 +1614,11 @@ var trViewCur='BASE';
 function trDispCur(){return trViewCur==='USD'?'USD':baseCurrency;}
 function trDisp(v){return trViewCur==='USD'?fromBase(v,'USD'):v;}
 function trSyncCurToggle(){
-  var b=el('tr-cur-base-btn'),u=el('tr-cur-usd-btn');
+  var b=el('tr-month-cur-base-btn'),u=el('tr-month-cur-usd-btn');
   if(b){b.textContent=baseCurrency;b.classList.toggle('on',trViewCur==='BASE');}
   if(u)u.classList.toggle('on',trViewCur==='USD');
+  var lab=el('tr-month-cur');if(lab)lab.textContent=trDispCur();
 }
-function trSetViewCur(c){trViewCur=c;trSyncCurToggle();renderTr();}
 function trEnsureYear(key,yr){
   if(!trData[key])trData[key]={years:[]};
   if(!trData[key].years.find(function(y){return y.year===yr;})){trData[key].years.push({year:yr,entries:[]});trData[key].years.sort(function(a,b){return a.year-b.year;});}
@@ -1658,7 +1647,6 @@ function trSelectStock(){
   if(!hasKey)return;
   if(trSelYear==null)trSelYear=new Date().getFullYear();
   trEnsureYear(trKey,trSelYear);
-  trSyncCurToggle();
   renderTr();
 }
 function trGoYear(delta){
@@ -1712,7 +1700,7 @@ function renderTr(){
   }
   var cutoff=sy<cy?11:(sy>cy?-1:(cm-1));
   el('tr-hero-lab').textContent='Invested through '+(cutoff>=0?MN[cutoff]:'\u2014');
-  ht('tr-hero-fig',heroFigHtml(trDisp(cumBHD),{cur:trDispCur()}));
+  ht('tr-hero-fig',heroFigHtml(cumBHD));
   var W=326,H=100,max=Math.max(cumProj,1);
   var ptsAll=[];for(var mi=0;mi<12;mi++)ptsAll.push({x:mi/11*W,y:H-(cProjArr[mi]/max*H)});
   var solidPts=cutoff>=0?ptsAll.slice(0,cutoff+1):[];
@@ -1726,14 +1714,14 @@ function renderTr(){
   var yi=trData[trKey].years.findIndex(function(y){return y.year===sy;})+1;
   ht('tr-stats','<div class="stat3"><div class="stat3-lab">Recorded</div><div class="stat3-val">'+recs+' / 12</div></div>'
     +'<div class="stat3"><div class="stat3-lab">Year</div><div class="stat3-val">'+yi+' of '+trData[trKey].years.length+'</div></div>'
-    +'<div class="stat3"><div class="stat3-lab">Year-end</div><div class="stat3-val" style="color:var(--mu)">'+fmtMoney(trDisp(cumProj),{cur:trDispCur()})+'</div></div>');
+    +'<div class="stat3"><div class="stat3-lab">Year-end</div><div class="stat3-val" style="color:var(--mu)">'+fmtMoney(cumProj)+'</div></div>');
   var grid='';
   for(var m2=1;m2<=12;m2++){
     var rec2=yObj?yObj.entries.find(function(e){return e.month===m2;}):null;
     var isCur2=sy===cy&&m2===cm;
     var isFuture2=sy>cy||(sy===cy&&m2>cm);
     var has=!!rec2;
-    var amtTxt=has?fmtMoney(trDisp(rec2.amtBHD),{dp:0,cur:trDispCur()}):'\u2014';
+    var amtTxt=has?fmtMoney(rec2.amtBHD,{dp:0}):'\u2014';
     var tag=has?(rec2.amtBHD===0?'Zero':'Recorded')+(isCur2?' \u00b7 this month':''):(isFuture2?'Future':(trGetEff(sy,m2)>0?'Carried':'\u2014'));
     grid+='<button type="button" class="month-tile'+(isFuture2?' fut':'')+(isCur2?' cur':'')+'" onclick="trOpenMonth('+sy+','+m2+')">'
       +'<span class="month-tile-lab">'+MN[m2-1].slice(0,3)+'</span>'
@@ -1745,10 +1733,11 @@ function renderTr(){
 var trMonthEdit=null;
 function trOpenMonth(yr,mo){
   trMonthEdit={yr:yr,mo:mo};
+  trViewCur='BASE';
+  trSyncCurToggle();
   var yObj=trData[trKey].years.find(function(y){return y.year===yr;});
   var rec=yObj?yObj.entries.find(function(e){return e.month===mo;}):null;
   el('tr-month-title').textContent=MN[mo-1]+' '+yr;
-  el('tr-month-cur').textContent=trDispCur();
   var dp=(CUR[trDispCur()]||CUR.BHD).dp;
   var amtInp=el('tr-month-amt');
   amtInp.value=rec?parseFloat(trDisp(rec.amtBHD).toFixed(dp)):'';
@@ -1757,6 +1746,26 @@ function trOpenMonth(yr,mo){
   el('tr-month-hint').textContent=rec?'':'No record \u2014 carries forward '+fmtMoney(trDisp(trGetEff(yr,mo)),{cur:trDispCur()})+' unless you set a value.';
   el('m-trmonth').classList.add('on');
   setTimeout(function(){if(amtInp)amtInp.focus();},50);
+}
+function trModalSetCur(c){
+  if(c===trViewCur)return;
+  var amtInp=el('tr-month-amt');
+  var raw=parseFloat(amtInp.value);
+  if(!isNaN(raw)){
+    var baseAmt=toBase(raw,trDispCur());
+    trViewCur=c;
+    var dp=(CUR[trDispCur()]||CUR.BHD).dp;
+    amtInp.value=parseFloat(trDisp(baseAmt).toFixed(dp));
+  }else{
+    trViewCur=c;
+  }
+  trSyncCurToggle();
+  if(trMonthEdit){
+    amtInp.placeholder=fmtMoney(trDisp(trGetEff(trMonthEdit.yr,trMonthEdit.mo)),{dp:0,cur:trDispCur()});
+    var rec=trData[trKey].years.find(function(y){return y.year===trMonthEdit.yr;});
+    rec=rec?rec.entries.find(function(e){return e.month===trMonthEdit.mo;}):null;
+    el('tr-month-hint').textContent=rec?'':'No record \u2014 carries forward '+fmtMoney(trDisp(trGetEff(trMonthEdit.yr,trMonthEdit.mo)),{cur:trDispCur()})+' unless you set a value.';
+  }
 }
 function trMonthSave(){
   if(!trMonthEdit)return;
@@ -1784,7 +1793,6 @@ function projRefreshDropdown(){
     var k=sKey(it);
     return '<button type="button" class="btab pill'+(k===projKey?' on':'')+'" onclick="projPickStock(\''+k.replace(/'/g,"\\'")+'\')">'+esc(it.sym)+'</button>';
   }).join('');
-  projSyncCurToggle();
   renderProjStock();renderProjOverview();
 }
 function projPickStock(key){projKey=key;projRefreshDropdown();}
@@ -1847,7 +1855,13 @@ function renderProjStock(){
       +'<label class="tile3"><span class="tile3-lab">Return %</span><input type="number" id="proj-rate" value="'+rate+'" min="0" max="50" step="0.1" onchange="projUpdateRate(this)"></label>'
       +'<label class="tile3"><span class="tile3-lab">Years</span><input type="number" id="proj-yrs" value="'+horizYrs+'" min="1" max="50" step="1" onchange="projUpdateYears(this)"></label>'
     +'</div>'
-    +(item.track?'<div class="fig-caption" style="margin:-4px 0 10px 4px;color:var(--bl-tx)">&#10003; Monthly auto-linked to Tracker</div>':'')
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-4px 0 10px 4px">'
+      +'<span class="fig-caption" style="color:var(--bl-tx)">'+(item.track?'✓ Monthly auto-linked to Tracker':'')+'</span>'
+      +'<div class="seg2" style="width:112px;flex-shrink:0">'
+        +'<button type="button" class="seg2-btn'+(projViewCur==='BASE'?' on':'')+'" onclick="projSetViewCur(\'BASE\')">'+baseCurrency+'</button>'
+        +'<button type="button" class="seg2-btn'+(projViewCur==='USD'?' on':'')+'" onclick="projSetViewCur(\'USD\')">USD</button>'
+      +'</div>'
+    +'</div>'
     +'<div class="proj-tbl" id="proj-stock-tbl"></div>';
   ht('proj-stock-view',html);
   projRenderStockTable(pd,horizYrs,monthly,rate);
