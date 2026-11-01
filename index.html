@@ -2603,11 +2603,13 @@ el('sp-view-tabs').addEventListener('click',function(e){
   slideTo(pn,to-from);
 });
 el('bp-spending').addEventListener('click',function(e){
-  var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
-  var chip=e.target.closest('.sp-chip');if(chip){spSelectedCat=chip.dataset.cat;spRenderChips();return;}
   var rowEntry=e.target.closest('[data-sp-row]');if(rowEntry){spEditEntry(rowEntry.dataset.id);return;}
 });
-el('bp-spending').addEventListener('keydown',function(e){
+el('m-add').addEventListener('click',function(e){
+  var delChip=e.target.closest('.sp-chip-del');if(delChip){spRemoveCat(delChip.dataset.cat);return;}
+  var chip=e.target.closest('.sp-chip');if(chip){spSelectedCat=chip.dataset.cat;spRenderChips();return;}
+});
+el('m-add').addEventListener('keydown',function(e){
   if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('sp-chip')){e.preventDefault();e.target.click();}
 });
 document.querySelectorAll('.btabs').forEach(function(g){
