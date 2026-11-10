@@ -597,9 +597,10 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
         <input class="sinp-sal" type="number" inputmode="decimal" id="main-salary" value="0" min="0" step="50">
       </div>
     </div>
-    <div class="ct">Other sources</div>
+    <div class="cat-head"><div class="ct" style="margin-bottom:0">Other sources</div>
+      <button type="button" class="btn" onclick="toggleDListEdit('income')" id="dlist-edit-income">Edit</button></div>
     <div class="card" style="padding:0;overflow:hidden"><div class="dlist" id="income-list"></div><button class="ab ab-row" onclick="addR('income')"><span class="add-ic">+</span> Add income source</button></div>
-    <span class="fig-caption" style="padding:0 4px">Swipe a row left to delete.</span>
+    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row, or swipe it left.</span>
   </div>
   <div class="bpn" id="bp-expenses">
     <input type="hidden" id="living-expense" value="0">
@@ -613,8 +614,10 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
       <span id="exp-budget-link-text">Spending budget (BD 0) is set in Spending</span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--dm)" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
     </button>
-    <div class="ct">Bills &amp; fixed costs</div>
+    <div class="cat-head"><div class="ct" style="margin-bottom:0">Bills &amp; fixed costs</div>
+      <button type="button" class="btn" onclick="toggleDListEdit('expenses')" id="dlist-edit-expenses">Edit</button></div>
     <div class="card" style="padding:0;overflow:hidden"><div class="dlist" id="expenses-list"></div><button class="ab ab-row" onclick="addR('expenses')"><span class="add-ic">+</span> Add expense</button></div>
+    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row, or swipe it left.</span>
   </div>
   <div class="bpn" id="bp-savings">
     <div class="hero2">
@@ -623,8 +626,10 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
       <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--br);gap:2px;margin-top:8px"><div id="sav-hero-bar" style="height:100%;background:var(--bl-v)"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mu);padding-top:2px"><span id="sav-hero-items"></span><span id="sav-hero-pct"></span></div>
     </div>
-    <div class="ct">Savings &amp; goals</div>
+    <div class="cat-head"><div class="ct" style="margin-bottom:0">Savings &amp; goals</div>
+      <button type="button" class="btn" onclick="toggleDListEdit('savings')" id="dlist-edit-savings">Edit</button></div>
     <div class="card" style="padding:0;overflow:hidden"><div class="dlist" id="savings-list"></div><button class="ab ab-row" onclick="addR('savings')"><span class="add-ic">+</span> Add saving or goal</button></div>
+    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row, or swipe it left.</span>
     <div class="card" style="display:flex;align-items:center;gap:12px;height:60px;padding:0 14px">
       <span class="ddot" style="background:var(--yw-v)"></span>
       <span style="flex:1;display:flex;flex-direction:column">
@@ -1077,14 +1082,22 @@ function renderFXBar(){
 }
 
 // ── BUDGET ──
+var dListEditMode={income:false,expenses:false,savings:false};
+function toggleDListEdit(t){
+  dListEditMode[t]=!dListEditMode[t];
+  var btn=el('dlist-edit-'+t);if(btn)btn.textContent=dListEditMode[t]?'Done':'Edit';
+  renderL(t);
+}
 function renderL(t){
   var c=el(t+'-list');c.innerHTML='';
   var dotCol=(t==='savings')?'var(--bl-v)':null;
+  var editing=dListEditMode[t];
   budgetLists[t].forEach(function(item,i){
     var row=document.createElement('div');row.className='drow';
     row.innerHTML=(dotCol?'<span class="ddot" style="background:'+dotCol+'"></span>':'')
       +'<input class="dn" type="text" placeholder="Name" value="'+esc(item.name)+'" data-t="'+t+'" data-i="'+i+'" data-f="n">'
-      +'<input class="da" type="text" inputmode="decimal" placeholder="0" value="'+(item.amt||0).toFixed(baseDp())+'" data-t="'+t+'" data-i="'+i+'" data-f="a">';
+      +'<input class="da" type="text" inputmode="decimal" placeholder="0" value="'+(item.amt||0).toFixed(baseDp())+'" data-t="'+t+'" data-i="'+i+'" data-f="a">'
+      +(editing?'<button type="button" class="xb" onclick="delR(\''+t+'\','+i+')" title="Remove" aria-label="Remove">✕</button>':'');
     c.appendChild(row);
     attachSwipeDelete(row,function(){delR(t,i);});
   });
