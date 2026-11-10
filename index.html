@@ -118,6 +118,7 @@ button{font-family:inherit}
 .ddot{width:10px;height:10px;min-width:10px;border-radius:50%;flex-shrink:0}
 input.dn{all:unset;flex:1;min-width:0;font-size:14px;color:var(--tx)}
 input.da{all:unset;width:84px;flex-shrink:0;font-size:15px;font-weight:500;color:var(--tx);text-align:right;font-variant-numeric:tabular-nums lining-nums}
+input.dn[readonly],input.da[readonly]{cursor:default}
 .xb{all:unset;box-sizing:border-box;width:24px;height:24px;min-width:24px;border-radius:8px;background:var(--inp-bg);color:var(--dm);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .xb:hover{color:var(--rd-v)}
 .ab{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:var(--rad-r);color:var(--mu);font-size:12px;cursor:pointer;width:100%}
@@ -1095,8 +1096,8 @@ function renderL(t){
   budgetLists[t].forEach(function(item,i){
     var row=document.createElement('div');row.className='drow';
     row.innerHTML=(dotCol?'<span class="ddot" style="background:'+dotCol+'"></span>':'')
-      +'<input class="dn" type="text" placeholder="Name" value="'+esc(item.name)+'" data-t="'+t+'" data-i="'+i+'" data-f="n">'
-      +'<input class="da" type="text" inputmode="decimal" placeholder="0" value="'+(item.amt||0).toFixed(baseDp())+'" data-t="'+t+'" data-i="'+i+'" data-f="a">'
+      +'<input class="dn" type="text" placeholder="Name" value="'+esc(item.name)+'"'+(editing?'':' readonly')+' data-t="'+t+'" data-i="'+i+'" data-f="n">'
+      +'<input class="da" type="text" inputmode="decimal" placeholder="0" value="'+(item.amt||0).toFixed(baseDp())+'"'+(editing?'':' readonly')+' data-t="'+t+'" data-i="'+i+'" data-f="a">'
       +(editing?'<button type="button" class="xb" onclick="delR(\''+t+'\','+i+')" title="Remove" aria-label="Remove">✕</button>':'');
     c.appendChild(row);
     attachSwipeDelete(row,function(){delR(t,i);});
@@ -1135,7 +1136,12 @@ function attachSwipeDelete(row,onDelete){
   row.addEventListener('mousedown',lpStart);
   ['mouseup','mouseleave'].forEach(function(ev){row.addEventListener(ev,lpCancel);});
 }
-function addR(t){budgetLists[t].push({name:'',amt:0});renderL(t);var ins=el(t+'-list').querySelectorAll('.dn');if(ins.length)ins[ins.length-1].focus();}
+function addR(t){
+  budgetLists[t].push({name:'',amt:0});
+  if(!dListEditMode[t]){dListEditMode[t]=true;var btn=el('dlist-edit-'+t);if(btn)btn.textContent='Done';}
+  renderL(t);
+  var ins=el(t+'-list').querySelectorAll('.dn');if(ins.length)ins[ins.length-1].focus();
+}
 function delR(t,i){budgetLists[t].splice(i,1);renderL(t);recalcBudget();}
 
 function recalcBudget(){
