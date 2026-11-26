@@ -601,7 +601,7 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
     <div class="cat-head"><div class="ct" style="margin-bottom:0">Other sources</div>
       <button type="button" class="btn" onclick="toggleDListEdit('income')" id="dlist-edit-income">Edit</button></div>
     <div class="card" style="padding:0;overflow:hidden"><div class="dlist" id="income-list"></div><button class="ab ab-row" onclick="addR('income')"><span class="add-ic">+</span> Add income source</button></div>
-    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row, or swipe it left.</span>
+    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row.</span>
   </div>
   <div class="bpn" id="bp-expenses">
     <input type="hidden" id="living-expense" value="0">
@@ -618,7 +618,7 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
     <div class="cat-head"><div class="ct" style="margin-bottom:0">Bills &amp; fixed costs</div>
       <button type="button" class="btn" onclick="toggleDListEdit('expenses')" id="dlist-edit-expenses">Edit</button></div>
     <div class="card" style="padding:0;overflow:hidden"><div class="dlist" id="expenses-list"></div><button class="ab ab-row" onclick="addR('expenses')"><span class="add-ic">+</span> Add expense</button></div>
-    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row, or swipe it left.</span>
+    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row.</span>
   </div>
   <div class="bpn" id="bp-savings">
     <div class="hero2">
@@ -630,7 +630,7 @@ body{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
     <div class="cat-head"><div class="ct" style="margin-bottom:0">Savings &amp; goals</div>
       <button type="button" class="btn" onclick="toggleDListEdit('savings')" id="dlist-edit-savings">Edit</button></div>
     <div class="card" style="padding:0;overflow:hidden"><div class="dlist" id="savings-list"></div><button class="ab ab-row" onclick="addR('savings')"><span class="add-ic">+</span> Add saving or goal</button></div>
-    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row, or swipe it left.</span>
+    <span class="fig-caption" style="padding:0 4px">Tap Edit to remove a row.</span>
     <div class="card" style="display:flex;align-items:center;gap:12px;height:60px;padding:0 14px">
       <span class="ddot" style="background:var(--yw-v)"></span>
       <span style="flex:1;display:flex;flex-direction:column">
@@ -1100,7 +1100,6 @@ function renderL(t){
       +'<input class="da" type="text" inputmode="decimal" placeholder="0" value="'+(item.amt||0).toFixed(baseDp())+'"'+(editing?'':' readonly')+' data-t="'+t+'" data-i="'+i+'" data-f="a">'
       +(editing?'<button type="button" class="xb" onclick="delR(\''+t+'\','+i+')" title="Remove" aria-label="Remove">✕</button>':'');
     c.appendChild(row);
-    attachSwipeDelete(row,function(){delR(t,i);});
   });
   c.querySelectorAll('input').forEach(function(inp){
     inp.addEventListener('input',function(){
@@ -1110,31 +1109,6 @@ function renderL(t){
       recalcBudget();
     });
   });
-}
-function attachSwipeDelete(row,onDelete){
-  var sx=0,sy=0,dx=0,axis=null,active=false;
-  function onStart(cx,cy){sx=cx;sy=cy;dx=0;axis=null;active=true;row.style.transition='none';}
-  function onMove(cx,cy,ev){
-    if(!active)return;
-    var ddx=cx-sx,ddy=cy-sy;
-    if(axis===null){if(Math.abs(ddx)>6||Math.abs(ddy)>6)axis=Math.abs(ddx)>Math.abs(ddy)?'x':'y';}
-    if(axis==='x'){dx=Math.min(0,ddx);row.style.transform='translateX('+dx+'px)';row.style.opacity=String(Math.max(0,1+dx/160));if(ev&&ev.cancelable)ev.preventDefault();}
-  }
-  function onEnd(){
-    if(!active)return;active=false;
-    row.style.transition='transform .18s,opacity .18s';
-    if(axis==='x'&&dx<-64){row.style.transform='translateX(-110%)';row.style.opacity='0';setTimeout(onDelete,170);}
-    else{row.style.transform='';row.style.opacity='';}
-  }
-  row.addEventListener('touchstart',function(e){if(e.touches.length===1)onStart(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
-  row.addEventListener('touchmove',function(e){if(e.touches.length===1)onMove(e.touches[0].clientX,e.touches[0].clientY,e);},{passive:false});
-  row.addEventListener('touchend',onEnd);
-  row.addEventListener('touchcancel',onEnd);
-  var lpTimer=null;
-  function lpStart(e){if(e.target.tagName==='INPUT')return;lpTimer=setTimeout(function(){if(confirm('Remove this row?'))onDelete();},600);}
-  function lpCancel(){clearTimeout(lpTimer);}
-  row.addEventListener('mousedown',lpStart);
-  ['mouseup','mouseleave'].forEach(function(ev){row.addEventListener(ev,lpCancel);});
 }
 function addR(t){
   budgetLists[t].push({name:'',amt:0});
