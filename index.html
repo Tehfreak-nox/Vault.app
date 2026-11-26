@@ -1116,7 +1116,11 @@ function addR(t){
   renderL(t);
   var ins=el(t+'-list').querySelectorAll('.dn');if(ins.length)ins[ins.length-1].focus();
 }
-function delR(t,i){budgetLists[t].splice(i,1);renderL(t);recalcBudget();}
+function delR(t,i){
+  var item=budgetLists[t][i];
+  if(!confirm('Remove "'+(item&&item.name?item.name:'this row')+'"?'))return;
+  budgetLists[t].splice(i,1);renderL(t);recalcBudget();
+}
 
 function recalcBudget(){
   var sal=gn('main-salary');
@@ -1535,6 +1539,7 @@ function spEditEntry(id){
 }
 function spCancelEdit(){closeAddSheet();}
 function spDeleteEntry(id){
+  if(!confirm('Delete this entry?'))return;
   if(spEditingId===id)closeAddSheet();
   var i=expData.entries.findIndex(function(e){return e.id===id;});
   if(i!==-1)expData.entries.splice(i,1);
@@ -1905,6 +1910,7 @@ function trMonthSave(){
 }
 function trMonthClear(){
   if(!trMonthEdit)return;
+  if(!confirm('Clear this month’s record? It will carry forward the last amount instead.'))return;
   trSetEntry(trMonthEdit.yr,trMonthEdit.mo,null);
   closeM('m-trmonth');
   renderTr();
@@ -2629,6 +2635,13 @@ el('main-salary').addEventListener('input',recalcBudget);
 el('living-expense').addEventListener('input',function(){recalcBudget();spRender();});
 el('bp-spending').addEventListener('change',function(e){
   if(e.target&&e.target.id==='sp-date'){spRenderQuick();}
+});
+document.addEventListener('focusin',function(e){
+  var t=e.target;
+  if(t.tagName!=='INPUT'||t.readOnly)return;
+  if(t.type==='number'||t.classList.contains('da')||t.classList.contains('amt-big')||t.classList.contains('rinp')){
+    setTimeout(function(){try{t.select();}catch(err){}},0);
+  }
 });
 
 // ── INIT ──
